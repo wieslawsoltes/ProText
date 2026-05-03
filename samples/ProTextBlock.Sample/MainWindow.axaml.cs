@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using ProTextBlockCacheApi = ProTextBlock.ProTextBlockCache;
 using ProTextBlockControl = ProTextBlock.ProTextBlock;
@@ -14,18 +15,20 @@ namespace ProTextBlock.Sample;
 public partial class MainWindow : Window
 {
     private const int TextBoxSurfaceItemCount = 1000;
-    private const int TextBoxSurfaceColumns = 4;
-    private const double TextBoxSurfacePadding = 20;
-    private const double TextBoxSurfaceItemWidth = 360;
-    private const double TextBoxSurfaceItemHeight = 52;
-    private const double TextBoxSurfaceColumnGap = 16;
-    private const double TextBoxSurfaceRowGap = 12;
+    private const int TextBoxSurfaceColumns = 25;
+    private const double TextBoxSurfacePadding = 90;
+    private const double TextBoxSurfaceCellWidth = 370;
+    private const double TextBoxSurfaceCellHeight = 102;
+    private const double TextBoxSurfaceItemWidth = 300;
+    private const double TextBoxSurfaceItemHeight = 48;
+    private const double TextBoxSurfaceWheelZoomFactor = 1.12;
+    private const double TextBoxSurfaceWheelPanStep = 72;
 
     private readonly List<TextBox> _avaloniaTextBoxes = [];
     private readonly List<ProTextBoxControl> _proTextBoxes = [];
-    private ScrollViewer? _panningScrollViewer;
-    private Point _panStartPoint;
-    private Vector _panStartOffset;
+    private readonly TextBoxSurfaceState _avaloniaTextBoxSurface = new();
+    private readonly TextBoxSurfaceState _proTextBoxSurface = new();
+    private TextBoxSurfaceState? _panningTextBoxSurface;
     private readonly IReadOnlyList<CorpusItem> _corpora =
     [
         new("Short labels", "Frame time, cache hits, visible rows, selected segment, Pretext path, measured width, logical line count."),
@@ -50,30 +53,16 @@ public partial class MainWindow : Window
             UpdateCacheStatus();
         };
 
-        AvaloniaTextBoxZoomSlider.PropertyChanged += (_, e) =>
-        {
-            if (e.Property == Slider.ValueProperty)
-            {
-                ApplyTextBoxSurfaceZoom(AvaloniaTextBoxZoomSlider, AvaloniaTextBoxZoomSurface, AvaloniaTextBoxCanvas, AvaloniaTextBoxZoomText);
-            }
-        };
-        ProTextBoxZoomSlider.PropertyChanged += (_, e) =>
-        {
-            if (e.Property == Slider.ValueProperty)
-            {
-                ApplyTextBoxSurfaceZoom(ProTextBoxZoomSlider, ProTextBoxZoomSurface, ProTextBoxCanvas, ProTextBoxZoomText);
-            }
-        };
-        AvaloniaTextBoxResetButton.Click += (_, _) => ResetTextBoxSurface(AvaloniaTextBoxZoomSlider, AvaloniaTextBoxPanScrollViewer);
-        ProTextBoxResetButton.Click += (_, _) => ResetTextBoxSurface(ProTextBoxZoomSlider, ProTextBoxPanScrollViewer);
-        AttachPanZoomSurface(AvaloniaTextBoxPanScrollViewer, AvaloniaTextBoxZoomSlider);
-        AttachPanZoomSurface(ProTextBoxPanScrollViewer, ProTextBoxZoomSlider);
+        AttachPanZoomSurface(AvaloniaTextBoxViewport, AvaloniaTextBoxCanvas, AvaloniaTextBoxZoomSlider, AvaloniaTextBoxZoomText, _avaloniaTextBoxSurface);
+        AttachPanZoomSurface(ProTextBoxViewport, ProTextBoxCanvas, ProTextBoxZoomSlider, ProTextBoxZoomText, _proTextBoxSurface);
+        AvaloniaTextBoxResetButton.Click += (_, _) => ResetTextBoxSurface(_avaloniaTextBoxSurface, AvaloniaTextBoxCanvas, AvaloniaTextBoxZoomSlider, AvaloniaTextBoxZoomText);
+        ProTextBoxResetButton.Click += (_, _) => ResetTextBoxSurface(_proTextBoxSurface, ProTextBoxCanvas, ProTextBoxZoomSlider, ProTextBoxZoomText);
 
         CorpusBox.SelectedIndex = 1;
         RebuildDenseGrid();
         RebuildTextBoxSurfaces();
-        ApplyTextBoxSurfaceZoom(AvaloniaTextBoxZoomSlider, AvaloniaTextBoxZoomSurface, AvaloniaTextBoxCanvas, AvaloniaTextBoxZoomText);
-        ApplyTextBoxSurfaceZoom(ProTextBoxZoomSlider, ProTextBoxZoomSurface, ProTextBoxCanvas, ProTextBoxZoomText);
+        ApplyTextBoxSurfaceTransform(AvaloniaTextBoxCanvas, AvaloniaTextBoxZoomSlider, AvaloniaTextBoxZoomText, _avaloniaTextBoxSurface);
+        ApplyTextBoxSurfaceTransform(ProTextBoxCanvas, ProTextBoxZoomSlider, ProTextBoxZoomText, _proTextBoxSurface);
         UpdateContent();
         PresenterDemo.ShowCaret();
     }
@@ -166,8 +155,8 @@ public partial class MainWindow : Window
         ProTextBoxCanvas.Children.Clear();
 
         var rows = (int)Math.Ceiling(TextBoxSurfaceItemCount / (double)TextBoxSurfaceColumns);
-        var surfaceWidth = TextBoxSurfacePadding * 2 + TextBoxSurfaceColumns * TextBoxSurfaceItemWidth + (TextBoxSurfaceColumns - 1) * TextBoxSurfaceColumnGap;
-        var surfaceHeight = TextBoxSurfacePadding * 2 + rows * TextBoxSurfaceItemHeight + (rows - 1) * TextBoxSurfaceRowGap;
+        var surfaceWidth = TextBoxSurfacePadding * 2 + (TextBoxSurfaceColumns - 1) * TextBoxSurfaceCellWidth + TextBoxSurfaceItemWidth;
+        var surfaceHeight = TextBoxSurfacePadding * 2 + (rows - 1) * TextBoxSurfaceCellHeight + TextBoxSurfaceItemHeight;
 
         AvaloniaTextBoxCanvas.Width = surfaceWidth;
         AvaloniaTextBoxCanvas.Height = surfaceHeight;
@@ -178,8 +167,8 @@ public partial class MainWindow : Window
         {
             var column = i % TextBoxSurfaceColumns;
             var row = i / TextBoxSurfaceColumns;
-            var x = TextBoxSurfacePadding + column * (TextBoxSurfaceItemWidth + TextBoxSurfaceColumnGap);
-            var y = TextBoxSurfacePadding + row * (TextBoxSurfaceItemHeight + TextBoxSurfaceRowGap);
+            var x = TextBoxSurfacePadding + column * TextBoxSurfaceCellWidth + TextBoxSurfaceJitter(i, 47, 92);
+            var y = TextBoxSurfacePadding + row * TextBoxSurfaceCellHeight + TextBoxSurfaceJitter(i, 83, 36);
             var text = TextBoxSurfaceText(i);
 
             var avaloniaTextBox = new TextBox
@@ -240,87 +229,126 @@ public partial class MainWindow : Window
         }
     }
 
-    private static void ApplyTextBoxSurfaceZoom(Slider slider, Canvas zoomSurface, Canvas contentCanvas, TextBlock zoomText)
+    private static void ApplyTextBoxSurfaceTransform(Canvas contentCanvas, Slider slider, TextBlock zoomText, TextBoxSurfaceState state)
     {
-        var zoom = Math.Clamp(slider.Value, slider.Minimum, slider.Maximum);
-        zoomSurface.Width = contentCanvas.Width * zoom;
-        zoomSurface.Height = contentCanvas.Height * zoom;
-        contentCanvas.RenderTransform = new ScaleTransform(zoom, zoom);
-        zoomText.Text = $"{zoom * 100:0}%";
+        state.Zoom = Math.Clamp(state.Zoom, slider.Minimum, slider.Maximum);
+        slider.Value = state.Zoom;
+        contentCanvas.RenderTransform = new MatrixTransform(new Matrix(state.Zoom, 0, 0, state.Zoom, state.Offset.X, state.Offset.Y));
+        zoomText.Text = $"{state.Zoom * 100:0}%";
     }
 
-    private static void ResetTextBoxSurface(Slider slider, ScrollViewer scrollViewer)
+    private static void ResetTextBoxSurface(TextBoxSurfaceState state, Canvas contentCanvas, Slider slider, TextBlock zoomText)
     {
-        slider.Value = 1;
-        scrollViewer.Offset = default;
+        state.Zoom = 1;
+        state.Offset = TextBoxSurfaceState.InitialOffset;
+        ApplyTextBoxSurfaceTransform(contentCanvas, slider, zoomText, state);
     }
 
-    private static void ZoomTextBoxSurface(PointerWheelEventArgs e, Slider slider)
+    private void AttachPanZoomSurface(Control viewport, Canvas contentCanvas, Slider slider, TextBlock zoomText, TextBoxSurfaceState state)
     {
-        if ((e.KeyModifiers & KeyModifiers.Control) == 0)
+        slider.PropertyChanged += (_, e) =>
         {
-            return;
-        }
-
-        var step = e.Delta.Y > 0 ? 0.1 : -0.1;
-        slider.Value = Math.Clamp(slider.Value + step, slider.Minimum, slider.Maximum);
-        e.Handled = true;
-    }
-
-    private void AttachPanZoomSurface(ScrollViewer scrollViewer, Slider slider)
-    {
-        scrollViewer.PointerWheelChanged += (_, e) => ZoomTextBoxSurface(e, slider);
-        scrollViewer.PointerPressed += (_, e) => StartTextBoxSurfacePan(e, scrollViewer);
-        scrollViewer.PointerMoved += (_, e) => MoveTextBoxSurfacePan(e, scrollViewer);
-        scrollViewer.PointerReleased += (_, e) => StopTextBoxSurfacePan(e, scrollViewer);
-        scrollViewer.PointerCaptureLost += (_, _) =>
-        {
-            if (ReferenceEquals(_panningScrollViewer, scrollViewer))
+            if (e.Property == Slider.ValueProperty)
             {
-                _panningScrollViewer = null;
+                state.Zoom = slider.Value;
+                ApplyTextBoxSurfaceTransform(contentCanvas, slider, zoomText, state);
+            }
+        };
+
+        viewport.AddHandler<PointerWheelEventArgs>(
+            InputElement.PointerWheelChangedEvent,
+            (_, e) => WheelTextBoxSurface(e, viewport, contentCanvas, slider, zoomText, state),
+            RoutingStrategies.Tunnel,
+            handledEventsToo: true);
+        viewport.AddHandler<PointerPressedEventArgs>(
+            InputElement.PointerPressedEvent,
+            (_, e) => StartTextBoxSurfacePan(e, viewport, state),
+            RoutingStrategies.Tunnel,
+            handledEventsToo: true);
+        viewport.AddHandler<PointerEventArgs>(
+            InputElement.PointerMovedEvent,
+            (_, e) => MoveTextBoxSurfacePan(e, viewport, contentCanvas, slider, zoomText, state),
+            RoutingStrategies.Tunnel,
+            handledEventsToo: true);
+        viewport.AddHandler<PointerReleasedEventArgs>(
+            InputElement.PointerReleasedEvent,
+            (_, e) => StopTextBoxSurfacePan(e, state),
+            RoutingStrategies.Tunnel,
+            handledEventsToo: true);
+        viewport.PointerCaptureLost += (_, _) =>
+        {
+            if (ReferenceEquals(_panningTextBoxSurface, state))
+            {
+                _panningTextBoxSurface = null;
             }
         };
     }
 
-    private void StartTextBoxSurfacePan(PointerPressedEventArgs e, ScrollViewer scrollViewer)
+    private static void WheelTextBoxSurface(PointerWheelEventArgs e, Control viewport, Canvas contentCanvas, Slider slider, TextBlock zoomText, TextBoxSurfaceState state)
     {
-        var point = e.GetCurrentPoint(scrollViewer);
+        var position = e.GetPosition(viewport);
+
+        if ((e.KeyModifiers & KeyModifiers.Shift) != 0)
+        {
+            state.Offset += new Vector(e.Delta.Y * TextBoxSurfaceWheelPanStep, e.Delta.X * TextBoxSurfaceWheelPanStep);
+        }
+        else if ((e.KeyModifiers & KeyModifiers.Alt) != 0)
+        {
+            state.Offset += new Vector(e.Delta.X * TextBoxSurfaceWheelPanStep, e.Delta.Y * TextBoxSurfaceWheelPanStep);
+        }
+        else
+        {
+            var oldZoom = state.Zoom;
+            var zoomFactor = e.Delta.Y > 0 ? TextBoxSurfaceWheelZoomFactor : 1 / TextBoxSurfaceWheelZoomFactor;
+            var newZoom = Math.Clamp(oldZoom * zoomFactor, slider.Minimum, slider.Maximum);
+            var worldPoint = new Point((position.X - state.Offset.X) / oldZoom, (position.Y - state.Offset.Y) / oldZoom);
+
+            state.Zoom = newZoom;
+            state.Offset = new Vector(position.X - worldPoint.X * newZoom, position.Y - worldPoint.Y * newZoom);
+        }
+
+        ApplyTextBoxSurfaceTransform(contentCanvas, slider, zoomText, state);
+        e.Handled = true;
+    }
+
+    private void StartTextBoxSurfacePan(PointerPressedEventArgs e, Control viewport, TextBoxSurfaceState state)
+    {
+        var point = e.GetCurrentPoint(viewport);
 
         if (!point.Properties.IsMiddleButtonPressed && !point.Properties.IsRightButtonPressed)
         {
             return;
         }
 
-        _panningScrollViewer = scrollViewer;
-        _panStartPoint = point.Position;
-        _panStartOffset = scrollViewer.Offset;
-        e.Pointer.Capture(scrollViewer);
+        _panningTextBoxSurface = state;
+        state.PanStartPoint = point.Position;
+        state.PanStartOffset = state.Offset;
+        e.Pointer.Capture(viewport);
         e.Handled = true;
     }
 
-    private void MoveTextBoxSurfacePan(PointerEventArgs e, ScrollViewer scrollViewer)
+    private void MoveTextBoxSurfacePan(PointerEventArgs e, Control viewport, Canvas contentCanvas, Slider slider, TextBlock zoomText, TextBoxSurfaceState state)
     {
-        if (!ReferenceEquals(_panningScrollViewer, scrollViewer))
+        if (!ReferenceEquals(_panningTextBoxSurface, state))
         {
             return;
         }
 
-        var position = e.GetPosition(scrollViewer);
-        var delta = position - _panStartPoint;
-        scrollViewer.Offset = new Vector(
-            Math.Max(0, _panStartOffset.X - delta.X),
-            Math.Max(0, _panStartOffset.Y - delta.Y));
+        var position = e.GetPosition(viewport);
+        var delta = position - state.PanStartPoint;
+        state.Offset = state.PanStartOffset + delta;
+        ApplyTextBoxSurfaceTransform(contentCanvas, slider, zoomText, state);
         e.Handled = true;
     }
 
-    private void StopTextBoxSurfacePan(PointerReleasedEventArgs e, ScrollViewer scrollViewer)
+    private void StopTextBoxSurfacePan(PointerReleasedEventArgs e, TextBoxSurfaceState state)
     {
-        if (!ReferenceEquals(_panningScrollViewer, scrollViewer))
+        if (!ReferenceEquals(_panningTextBoxSurface, state))
         {
             return;
         }
 
-        _panningScrollViewer = null;
+        _panningTextBoxSurface = null;
         e.Pointer.Capture(null);
         e.Handled = true;
     }
@@ -400,6 +428,24 @@ public partial class MainWindow : Window
     private static string TextBoxSurfaceText(int index)
     {
         return $"Box {index + 1:0000}: {DenseText(index)} across a zoomable editable surface.";
+    }
+
+    private static double TextBoxSurfaceJitter(int index, int multiplier, double range)
+    {
+        return (((index * multiplier) % 101) / 100.0 - 0.5) * range;
+    }
+
+    private sealed class TextBoxSurfaceState
+    {
+        public static readonly Vector InitialOffset = new(48, 48);
+
+        public double Zoom { get; set; } = 1;
+
+        public Vector Offset { get; set; } = InitialOffset;
+
+        public Point PanStartPoint { get; set; }
+
+        public Vector PanStartOffset { get; set; }
     }
 
     private sealed record CorpusItem(string Name, string Text)

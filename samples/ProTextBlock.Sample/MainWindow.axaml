@@ -237,15 +237,16 @@
                             </Grid>
                         </Border>
 
-                        <Border Grid.Row="1" Classes="panel" ClipToBounds="True">
-                            <ScrollViewer x:Name="AvaloniaTextBoxPanScrollViewer"
-                                          HorizontalScrollBarVisibility="Auto"
-                                          VerticalScrollBarVisibility="Auto">
-                                <Canvas x:Name="AvaloniaTextBoxZoomSurface"
-                                        Background="#F5F7FA">
-                                    <Canvas x:Name="AvaloniaTextBoxCanvas" />
-                                </Canvas>
-                            </ScrollViewer>
+                        <Border x:Name="AvaloniaTextBoxViewport"
+                                Grid.Row="1"
+                                Classes="panel"
+                                Background="#F5F7FA"
+                                ClipToBounds="True">
+                            <Canvas x:Name="AvaloniaTextBoxZoomSurface"
+                                    Background="#F5F7FA">
+                                <Canvas x:Name="AvaloniaTextBoxCanvas"
+                                        RenderTransformOrigin="0,0" />
+                            </Canvas>
                         </Border>
                     </Grid>
                 </TabItem>
@@ -273,15 +274,16 @@
                             </Grid>
                         </Border>
 
-                        <Border Grid.Row="1" Classes="panel" ClipToBounds="True">
-                            <ScrollViewer x:Name="ProTextBoxPanScrollViewer"
-                                          HorizontalScrollBarVisibility="Auto"
-                                          VerticalScrollBarVisibility="Auto">
-                                <Canvas x:Name="ProTextBoxZoomSurface"
-                                        Background="#F5F7FA">
-                                    <Canvas x:Name="ProTextBoxCanvas" />
-                                </Canvas>
-                            </ScrollViewer>
+                        <Border x:Name="ProTextBoxViewport"
+                                Grid.Row="1"
+                                Classes="panel"
+                                Background="#F5F7FA"
+                                ClipToBounds="True">
+                            <Canvas x:Name="ProTextBoxZoomSurface"
+                                    Background="#F5F7FA">
+                                <Canvas x:Name="ProTextBoxCanvas"
+                                        RenderTransformOrigin="0,0" />
+                            </Canvas>
                         </Border>
                     </Grid>
                 </TabItem>
