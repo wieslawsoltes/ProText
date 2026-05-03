@@ -221,7 +221,7 @@
                                 <TextBlock Classes="sectionTitle" Text="Avalonia TextBox Surface" VerticalAlignment="Center" />
                                 <Slider x:Name="AvaloniaTextBoxZoomSlider"
                                         Grid.Column="1"
-                                        Minimum="0.35"
+                                        Minimum="0.01"
                                         Maximum="2.5"
                                         Value="1"
                                         TickFrequency="0.05" />
@@ -258,7 +258,7 @@
                                 <TextBlock Classes="sectionTitle" Text="ProTextBox Surface" VerticalAlignment="Center" />
                                 <Slider x:Name="ProTextBoxZoomSlider"
                                         Grid.Column="1"
-                                        Minimum="0.35"
+                                        Minimum="0.01"
                                         Maximum="2.5"
                                         Value="1"
                                         TickFrequency="0.05" />
