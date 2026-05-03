@@ -12,19 +12,28 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
     private readonly Rect _contentBounds;
     private readonly TextAlignment _textAlignment;
     private readonly FlowDirection _flowDirection;
+    private readonly ProTextBrush? _selectionForeground;
+    private readonly int _selectionStart;
+    private readonly int _selectionEnd;
 
     public ProTextBlockDrawOperation(
         Rect bounds,
         Rect contentBounds,
         ProTextLayoutSnapshot snapshot,
         TextAlignment textAlignment,
-        FlowDirection flowDirection)
+        FlowDirection flowDirection,
+        ProTextBrush? selectionForeground = null,
+        int selectionStart = 0,
+        int selectionEnd = 0)
     {
         Bounds = bounds;
         _contentBounds = contentBounds;
         _snapshot = snapshot;
         _textAlignment = textAlignment;
         _flowDirection = flowDirection;
+        _selectionForeground = selectionForeground;
+        _selectionStart = selectionStart;
+        _selectionEnd = selectionEnd;
     }
 
     public Rect Bounds { get; }
@@ -44,14 +53,17 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
             && _contentBounds.Equals(other._contentBounds)
             && ReferenceEquals(_snapshot, other._snapshot)
             && _textAlignment == other._textAlignment
-            && _flowDirection == other._flowDirection;
+            && _flowDirection == other._flowDirection
+            && Equals(_selectionForeground, other._selectionForeground)
+            && _selectionStart == other._selectionStart
+            && _selectionEnd == other._selectionEnd;
     }
 
     public override bool Equals(object? obj) => obj is ProTextBlockDrawOperation other && Equals(other);
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(Bounds, _contentBounds, _snapshot, _textAlignment, _flowDirection);
+        return HashCode.Combine(Bounds, _contentBounds, _snapshot, _textAlignment, _flowDirection, _selectionForeground, _selectionStart, _selectionEnd);
     }
 
     public void Render(ImmediateDrawingContext context)
@@ -91,19 +103,12 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
                         continue;
                     }
 
-                    var family = ProTextBlockFontDescriptor.GetPrimaryFamilyName(fragment.Style.FontFamily);
-                    var fontStyle = ProTextFontResolver.CreateFontStyle(fragment.Style.FontWeight, fragment.Style.FontStretch, fragment.Style.FontStyle);
-                    using var resolvedTypeface = ProTextFontResolver.ResolveTypeface(
-                        fragment.Style.FontFamily,
-                        fragment.Style.FontWeight,
-                        fragment.Style.FontStretch,
-                        fragment.Style.FontStyle);
-                    using var font = ProTextFontResolver.CreateFont(resolvedTypeface.Typeface, fragment.Style.FontSize, resolvedTypeface.Simulations);
+                    var renderFont = ProTextRenderFontCache.Get(fragment.Style);
                     using var paint = CreatePaint(fragment.Style.Foreground, contentClip, lease.CurrentOpacity);
                     var x = alignedX + (float)fragment.X;
 
-                    DrawText(canvas, fragment.Text, x, baseline, fragment.Style, family, fontStyle, resolvedTypeface.Typeface, font, paint);
-                    DrawDecorations(canvas, fragment, x, baseline, font, contentClip, lease.CurrentOpacity);
+                    DrawFragment(canvas, fragment, x, baseline, renderFont, paint, contentClip, lease.CurrentOpacity);
+                    DrawDecorations(canvas, fragment, x, baseline, renderFont.Font, contentClip, lease.CurrentOpacity);
                 }
             }
         }
@@ -122,12 +127,7 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
             return (float)(_contentBounds.Y + lineIndex * _snapshot.LineHeight);
         }
 
-        using var resolvedTypeface = ProTextFontResolver.ResolveTypeface(
-            style.FontFamily,
-            style.FontWeight,
-            style.FontStretch,
-            style.FontStyle);
-        using var font = ProTextFontResolver.CreateFont(resolvedTypeface.Typeface, style.FontSize, resolvedTypeface.Simulations);
+        var font = ProTextRenderFontCache.Get(style).Font;
         var metrics = font.Metrics;
         var textHeight = metrics.Descent - metrics.Ascent;
         var baselineOffset = -metrics.Ascent + ((float)_snapshot.LineHeight - textHeight) / 2f;
@@ -240,7 +240,58 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
         return (colors, positions);
     }
 
-    private static void DrawText(
+    private void DrawFragment(
+        SKCanvas canvas,
+        ProTextLayoutFragment fragment,
+        float x,
+        float baseline,
+        ProTextRenderFont renderFont,
+        SKPaint paint,
+        SKRect shaderBounds,
+        double inheritedOpacity)
+    {
+        if (!TryGetSelectedTextRange(fragment, out var selectedStart, out var selectedEnd))
+        {
+            DrawText(canvas, fragment.Text, x, baseline, fragment.Style, renderFont.Family, renderFont.FontStyle, renderFont.Typeface, renderFont.Font, paint);
+            return;
+        }
+
+        var localStart = selectedStart - fragment.TextStart;
+        var localEnd = selectedEnd - fragment.TextStart;
+        var currentX = x;
+
+        if (localStart > 0)
+        {
+            currentX += DrawText(canvas, fragment.Text[..localStart], currentX, baseline, fragment.Style, renderFont.Family, renderFont.FontStyle, renderFont.Typeface, renderFont.Font, paint);
+        }
+
+        using (var selectionPaint = CreatePaint(_selectionForeground, shaderBounds, inheritedOpacity))
+        {
+            currentX += DrawText(canvas, fragment.Text[localStart..localEnd], currentX, baseline, fragment.Style, renderFont.Family, renderFont.FontStyle, renderFont.Typeface, renderFont.Font, selectionPaint);
+        }
+
+        if (localEnd < fragment.Text.Length)
+        {
+            DrawText(canvas, fragment.Text[localEnd..], currentX, baseline, fragment.Style, renderFont.Family, renderFont.FontStyle, renderFont.Typeface, renderFont.Font, paint);
+        }
+    }
+
+    private bool TryGetSelectedTextRange(ProTextLayoutFragment fragment, out int selectedStart, out int selectedEnd)
+    {
+        selectedStart = 0;
+        selectedEnd = 0;
+
+        if (_selectionForeground is null || _selectionStart == _selectionEnd || _selectionEnd <= fragment.TextStart || _selectionStart >= fragment.TextEnd)
+        {
+            return false;
+        }
+
+        selectedStart = Math.Max(_selectionStart, fragment.TextStart);
+        selectedEnd = Math.Min(_selectionEnd, fragment.TextEnd);
+        return selectedStart < selectedEnd;
+    }
+
+    private static float DrawText(
         SKCanvas canvas,
         string text,
         float x,
@@ -255,8 +306,10 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
         if (style.LetterSpacing.Equals(0d) && typeface.ContainsGlyphs(text))
         {
             canvas.DrawText(text, x, baseline, font, paint);
-            return;
+            return font.MeasureText(text);
         }
+
+        var startX = x;
 
         foreach (var grapheme in ProTextFontResolver.EnumerateGraphemes(text))
         {
@@ -274,6 +327,8 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
                 x += fallbackFont.MeasureText(grapheme) + (float)style.LetterSpacing;
             }
         }
+
+        return x - startX;
     }
 
     private static void DrawDecorations(

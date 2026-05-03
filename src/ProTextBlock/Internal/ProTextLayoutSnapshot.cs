@@ -280,7 +280,7 @@ internal sealed class ProTextLayoutSnapshot
 
     private static double MeasureText(string text, ProTextRichStyle style)
     {
-        return ProTextBlockTextMeasurerFactory.MeasureText(text, style.FontDescriptor);
+        return ProTextRenderFontCache.MeasureText(text, style);
     }
 }
 

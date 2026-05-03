@@ -216,10 +216,12 @@ public class ProTextPresenter : Control
             (control, value) => control.Inlines = value);
 
     private InlineCollection? _inlines;
+    private ProTextRichContent? _content;
     private ProTextLayoutSnapshot? _layoutSnapshot;
-    private ProTextLayoutSnapshot? _renderLayoutSnapshot;
-    private ProTextRichCacheKey? _localPreparedKey;
-    private ProTextPreparedContent? _localPrepared;
+    private ProTextLayoutSnapshot? _previousLayoutSnapshot;
+    private ProTextRichCacheKey? _preparedKey;
+    private ProTextPreparedContent? _prepared;
+    private bool _preparedUsesGlobalCache;
     private DispatcherTimer? _caretTimer;
     private bool _showCaret;
     private bool _caretBlink;
@@ -720,16 +722,7 @@ public class ProTextPresenter : Control
             context.FillRectangle(background, bounds);
         }
 
-        var renderContent = content;
-
-        if (ShouldUseSelectionForeground() && TryCreateRichContent(out var selectionContent, includeSelectionForeground: true))
-        {
-            renderContent = selectionContent;
-        }
-
-        var snapshot = ReferenceEquals(renderContent, content)
-            ? GetLayoutSnapshot(content, Bounds.Width)
-            : GetRenderLayoutSnapshot(renderContent, Bounds.Width);
+        var snapshot = GetLayoutSnapshot(content, Bounds.Width);
 
         if (snapshot.LineCount == 0)
         {
@@ -740,15 +733,24 @@ public class ProTextPresenter : Control
 
         using (context.PushClip(bounds))
         {
+            var selectionForeground = ShouldUseSelectionForeground()
+                ? ProTextInlineBuilder.SnapshotBrush(SelectionForegroundBrush)
+                : null;
+            var selectionStart = Math.Min(SelectionStart, SelectionEnd);
+            var selectionEnd = Math.Max(SelectionStart, SelectionEnd);
+
             context.Custom(new ProTextBlockDrawOperation(
                 bounds,
                 bounds,
                 snapshot,
                 TextAlignment,
-                FlowDirection));
+                FlowDirection,
+                selectionForeground,
+                selectionStart,
+                selectionEnd));
         }
 
-        DrawCaret(context, snapshot, renderContent);
+        DrawCaret(context, snapshot, content);
     }
 
     /// <inheritdoc />
@@ -775,8 +777,6 @@ public class ProTextPresenter : Control
         if (change.Property == SelectionStartProperty
             || change.Property == SelectionEndProperty)
         {
-            _renderLayoutSnapshot = null;
-
             if (ShouldUpdateCaretBounds())
             {
                 UpdateCaretBounds();
@@ -792,7 +792,6 @@ public class ProTextPresenter : Control
             || change.Property == CaretBrushProperty
             || change.Property == BackgroundProperty)
         {
-            _renderLayoutSnapshot = null;
             InvalidateVisual();
             return;
         }
@@ -814,13 +813,16 @@ public class ProTextPresenter : Control
 
     private void InvalidateProText()
     {
+        _content = null;
         _layoutSnapshot = null;
-        _renderLayoutSnapshot = null;
+        _previousLayoutSnapshot = null;
+        _preparedKey = null;
+        _prepared = null;
         InvalidateMeasure();
         InvalidateVisual();
     }
 
-    private bool TryCreateRichContent(out ProTextRichContent content, bool includeSelectionForeground = false)
+    private bool TryCreateRichContent(out ProTextRichContent content)
     {
         content = null!;
 
@@ -829,18 +831,31 @@ public class ProTextPresenter : Control
             return false;
         }
 
+        if (_content is { } cachedContent)
+        {
+            content = cachedContent;
+            return true;
+        }
+
         var baseStyle = CreateBaseStyle(Foreground, TextDecorations);
 
         if (Inlines is { Count: > 0 })
         {
-            return ProTextInlineBuilder.TryCreateInlineContent(Inlines, baseStyle, out content);
+            if (!ProTextInlineBuilder.TryCreateInlineContent(Inlines, baseStyle, out content))
+            {
+                return false;
+            }
+
+            _content = content;
+            return true;
         }
 
-        content = CreateTextContent(baseStyle, includeSelectionForeground);
+        content = CreateTextContent(baseStyle);
+        _content = content;
         return true;
     }
 
-    private ProTextRichContent CreateTextContent(ProTextRichStyle baseStyle, bool includeSelectionForeground)
+    private ProTextRichContent CreateTextContent(ProTextRichStyle baseStyle)
     {
         var text = Text ?? string.Empty;
         var caretIndex = Math.Clamp(CaretIndex, 0, text.Length);
@@ -862,20 +877,7 @@ public class ProTextPresenter : Control
             return builder.Build();
         }
 
-        var selectionForeground = includeSelectionForeground && ShouldUseSelectionForeground() ? SelectionForegroundBrush : null;
-
-        if (selectionForeground is null)
-        {
-            builder.AppendText(text, baseStyle);
-            return builder.Build();
-        }
-
-        var start = Math.Clamp(Math.Min(SelectionStart, SelectionEnd), 0, text.Length);
-        var end = Math.Clamp(Math.Max(SelectionStart, SelectionEnd), 0, text.Length);
-        var selectionStyle = CreateBaseStyle(selectionForeground, TextDecorations);
-        builder.AppendText(text[..start], baseStyle);
-        builder.AppendText(text[start..end], selectionStyle);
-        builder.AppendText(text[end..], baseStyle);
+        builder.AppendText(text, baseStyle);
         return builder.Build();
     }
 
@@ -895,24 +897,21 @@ public class ProTextPresenter : Control
 
     private ProTextLayoutSnapshot GetLayoutSnapshot(ProTextRichContent content, double availableWidth)
     {
-        return GetLayoutSnapshot(content, availableWidth, ref _layoutSnapshot);
-    }
-
-    private ProTextLayoutSnapshot GetRenderLayoutSnapshot(ProTextRichContent content, double availableWidth)
-    {
-        return GetLayoutSnapshot(content, availableWidth, ref _renderLayoutSnapshot);
-    }
-
-    private ProTextLayoutSnapshot GetLayoutSnapshot(ProTextRichContent content, double availableWidth, ref ProTextLayoutSnapshot? cachedSnapshot)
-    {
         var maxWidth = ResolveMaxWidth(availableWidth);
         var lineHeight = GetEffectiveLineHeight(content);
         var textWrapping = TextWrapping;
         var textTrimming = TextTrimming;
 
-        if (cachedSnapshot is { } snapshot && snapshot.Matches(content, maxWidth, lineHeight, maxLines: 0, textWrapping, textTrimming))
+        if (_layoutSnapshot is { } snapshot && snapshot.Matches(content, maxWidth, lineHeight, maxLines: 0, textWrapping, textTrimming))
         {
             return snapshot;
+        }
+
+        if (_previousLayoutSnapshot is { } previousSnapshot && previousSnapshot.Matches(content, maxWidth, lineHeight, maxLines: 0, textWrapping, textTrimming))
+        {
+            _previousLayoutSnapshot = _layoutSnapshot;
+            _layoutSnapshot = previousSnapshot;
+            return previousSnapshot;
         }
 
         var prepared = GetPreparedContent(content);
@@ -926,17 +925,19 @@ public class ProTextPresenter : Control
             textWrapping,
             textTrimming);
 
-        cachedSnapshot = snapshot;
+        _previousLayoutSnapshot = _layoutSnapshot;
+        _layoutSnapshot = snapshot;
         return snapshot;
     }
 
     private ProTextPreparedContent GetPreparedContent(ProTextRichContent content)
     {
         var key = new ProTextRichCacheKey(content.LayoutFingerprint);
+        var useGlobalCache = UseGlobalCache;
 
-        if (!UseGlobalCache && _localPrepared is not null && _localPreparedKey == key)
+        if (_prepared is not null && _preparedKey == key && _preparedUsesGlobalCache == useGlobalCache)
         {
-            return _localPrepared;
+            return _prepared;
         }
 
         var preparedParagraphs = new PreparedRichInline[content.Paragraphs.Count];
@@ -946,18 +947,16 @@ public class ProTextPresenter : Control
             var paragraph = content.Paragraphs[i];
             var items = paragraph.CreateInlineItems();
 
-            preparedParagraphs[i] = UseGlobalCache
+            preparedParagraphs[i] = useGlobalCache
                 ? ProTextBlockCache.GetOrPrepareRich(new ProTextRichCacheKey(paragraph.LayoutFingerprint), items)
                 : ProTextBlockCache.PrepareRichUncached(items);
         }
 
         var prepared = new ProTextPreparedContent(preparedParagraphs);
 
-        if (!UseGlobalCache)
-        {
-            _localPreparedKey = key;
-            _localPrepared = prepared;
-        }
+        _preparedKey = key;
+        _prepared = prepared;
+        _preparedUsesGlobalCache = useGlobalCache;
 
         return prepared;
     }
@@ -1142,7 +1141,7 @@ public class ProTextPresenter : Control
 
         foreach (var grapheme in ProTextFontResolver.EnumerateGraphemes(fragment.Text))
         {
-            var width = ProTextBlockTextMeasurerFactory.MeasureText(grapheme, fragment.Style.FontDescriptor) + fragment.Style.LetterSpacing;
+            var width = ProTextRenderFontCache.MeasureText(grapheme, fragment.Style) + fragment.Style.LetterSpacing;
             var nextIndex = lastIndex + grapheme.Length;
 
             if (x <= currentX + width / 2)
@@ -1194,8 +1193,14 @@ public class ProTextPresenter : Control
             if (textPosition <= fragment.TextEnd)
             {
                 var localLength = Math.Clamp(textPosition - fragment.TextStart, 0, fragment.Text.Length);
+
+                if (localLength == fragment.Text.Length)
+                {
+                    return x + fragment.X + fragment.Width;
+                }
+
                 var prefix = fragment.Text[..localLength];
-                return x + fragment.X + ProTextBlockTextMeasurerFactory.MeasureText(prefix, fragment.Style.FontDescriptor);
+                return x + fragment.X + ProTextRenderFontCache.MeasureText(prefix, fragment.Style);
             }
         }
 
