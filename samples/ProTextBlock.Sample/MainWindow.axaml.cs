@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using ProTextBlockCacheApi = ProTextBlock.ProTextBlockCache;
 using ProTextBlockControl = ProTextBlock.ProTextBlock;
+using ProTextPresenterControl = ProTextBlock.ProTextPresenter;
 
 namespace ProTextBlock.Sample;
 
@@ -36,6 +37,7 @@ public partial class MainWindow : Window
         CorpusBox.SelectedIndex = 1;
         RebuildDenseGrid();
         UpdateContent();
+        PresenterDemo.ShowCaret();
     }
 
     private void UpdateContent()
@@ -62,6 +64,9 @@ public partial class MainWindow : Window
         ProText.MaxLines = maxLines;
         ProText.TextWrapping = wrapping;
         ProText.UseGlobalCache = useGlobalCache;
+
+        ApplyPresenterText(PresenterDemo, fontSize, wrapping, useGlobalCache);
+        ApplyPresenterText(PresenterInlineDemo, fontSize, wrapping, useGlobalCache);
 
         foreach (var child in AvaloniaDenseGrid.Children)
         {
@@ -125,6 +130,14 @@ public partial class MainWindow : Window
         textBlock.FontSize = Math.Max(11, fontSize - 3);
         textBlock.LineHeight = Math.Round(textBlock.FontSize * 1.35);
         textBlock.TextWrapping = wrapping;
+    }
+
+    private static void ApplyPresenterText(ProTextPresenterControl presenter, double fontSize, TextWrapping wrapping, bool useGlobalCache)
+    {
+        presenter.FontSize = fontSize;
+        presenter.LineHeight = Math.Round(fontSize * 1.42);
+        presenter.TextWrapping = wrapping;
+        presenter.UseGlobalCache = useGlobalCache;
     }
 
     private void UpdateCacheStatus()

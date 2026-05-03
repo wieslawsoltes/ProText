@@ -106,11 +106,51 @@
                                     <docs:Italic>italic</docs:Italic>
                                     <docs:Run Text=", and " />
                                     <docs:Underline>underlined</docs:Underline>
-                                    <docs:Run Text=" runs continue to use Avalonia's original inline engine." />
+                                    <docs:Run Text=" runs stay on the shared Pretext inline renderer." />
                                 </pro:ProTextBlock>
                             </StackPanel>
                         </Border>
                     </Grid>
+
+                    <Border Classes="panel" Padding="18">
+                        <StackPanel Spacing="14">
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+                                <TextBlock Classes="sectionTitle" Text="ProTextPresenter" />
+                                <TextBlock Grid.Column="1" Classes="sectionTitle" Text="Inline ProTextPresenter" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+                                <Border Background="#F7FAFD" BorderBrush="#DDE3EC" BorderThickness="1" CornerRadius="6" Padding="12">
+                                    <pro:ProTextPresenter x:Name="PresenterDemo"
+                                                          Text="Presenter selection, caret, password masking, and preedit rendering share the ProText layout core."
+                                                          TextWrapping="Wrap"
+                                                          LineHeight="24"
+                                                          SelectionStart="10"
+                                                          SelectionEnd="29"
+                                                          CaretIndex="45"
+                                                          SelectionBrush="#663B82F6"
+                                                          SelectionForegroundBrush="#FFFFFF"
+                                                          Foreground="#17202C" />
+                                </Border>
+
+                                <Border Grid.Column="1" Background="#F7FAFD" BorderBrush="#DDE3EC" BorderThickness="1" CornerRadius="6" Padding="12">
+                                    <pro:ProTextPresenter x:Name="PresenterInlineDemo"
+                                                          TextWrapping="Wrap"
+                                                          LineHeight="24"
+                                                          Foreground="#17202C">
+                                        <pro:ProTextPresenter.Inlines>
+                                            <docs:Run Text="Presenter inline content: " />
+                                            <docs:Bold>bold</docs:Bold>
+                                            <docs:Run Text=", " />
+                                            <docs:Italic>italic</docs:Italic>
+                                            <docs:Run Text=", " />
+                                            <docs:Underline>underlined</docs:Underline>
+                                            <docs:Run Text=", and measured through reusable Pretext rich runs." />
+                                        </pro:ProTextPresenter.Inlines>
+                                    </pro:ProTextPresenter>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
                     <Border Classes="panel" Padding="18">
                         <StackPanel Spacing="14">
