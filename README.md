@@ -2,18 +2,18 @@
 
 `ProTextBlock` is a high-performance Avalonia 12 text rendering library powered by PretextSharp `0.1.0`.
 
-The package provides two controls:
+The package provides three controls:
 
 - `ProTextBlock`, a display control that mirrors the text-related `TextBlock` API surface where public Avalonia APIs make that practical.
 - `ProTextPresenter`, a reusable TextPresenter-like display component for editable surfaces that need Pretext-powered measurement, selection rectangles, caret bounds, password masking, preedit display, and rich inline presentation.
 - `ProTextBox`, a lightweight TextBox-like control with a Fluent TextBox theme copied from Avalonia and a `ProTextPresenter` hosted inside the template.
 
-Both controls use shared rich-inline flattening, Pretext prepared layout, and Skia drawing. Inline runs, trimming, decorations, letter spacing, font-feature-aware cache keys, multilingual text, Skia font fallback, and solid or gradient foreground brushes stay on the Pretext rendering path. The library does not delegate rendering to an internal Avalonia `TextBlock`.
+All three controls use shared rich-inline flattening, Pretext prepared layout, and Skia drawing. Inline runs, trimming, decorations, letter spacing, font-feature-aware cache keys, multilingual text, Skia font fallback, and solid or gradient foreground brushes stay on the Pretext rendering path. The library does not delegate rendering to an internal Avalonia `TextBlock`.
 
 ## Projects
 
 - `src/ProTextBlock` - control library.
-- `samples/ProTextBlock.Sample` - desktop comparison app for `TextBlock`, `ProTextBlock`, inline content, and `ProTextPresenter`.
+- `samples/ProTextBlock.Sample` - desktop comparison app for `TextBlock`, `ProTextBlock`, inline content, `ProTextPresenter`, and `ProTextBox`.
 - `tests/ProTextBlock.Tests` - unit and Avalonia headless render tests.
 - `benchmarks/ProTextBlock.Benchmarks` - BenchmarkDotNet layout and headless render benchmarks.
 - `benchmarks/ProTextBlock.InlineBenchmarks` - dedicated inline layout benchmarks.
@@ -72,11 +72,45 @@ Avalonia `TextBox` currently expects its template part to be Avalonia's own `Tex
 
 Applications that want the Fluent `ProTextBox` theme should merge [Fluent.axaml](src/ProTextBlock/Themes/Fluent.axaml) after adding Avalonia's `FluentTheme`.
 
+```xml
+<Application.Resources>
+    <ResourceDictionary>
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceInclude Source="avares://ProTextBlock/Themes/Fluent.axaml" />
+        </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+</Application.Resources>
+```
+
 ## Rendering Model
 
 The shared pipeline flattens plain text or supported inlines into immutable `ProTextRichContent`, prepares rich inline paragraphs through PretextSharp, keeps width-local layout snapshots per control, and renders retained custom draw operations through Skia. Render operations store immutable brush and decoration snapshots instead of live Avalonia brush objects.
 
 Supported text inlines are `Run`, `Span`, `Bold`, `Italic`, `Underline`, and `LineBreak`. `InlineUIContainer` is skipped because it is visual content, not text content, and the library does not create an Avalonia fallback visual.
+
+## Performance Summary
+
+The latest corrected TextBox benchmark run verifies that the app applies Avalonia's Fluent TextBox theme and the ProText Fluent theme before measuring. The benchmark fails during setup if Avalonia `TextPresenter` or ProText `ProTextPresenter` is missing from the visual tree, and layout measurements alternate width constraints to avoid cached no-op timings.
+
+Command used:
+
+```bash
+dotnet run -c Release --project benchmarks/ProTextBlock.TextBoxBenchmarks/ProTextBlock.TextBoxBenchmarks.csproj -- --filter "*"
+```
+
+Environment: Apple M3 Pro, .NET `10.0.5`, BenchmarkDotNet `0.15.8`, ShortRun job.
+
+| Scenario | Avalonia TextBox | ProTextBox | Result |
+| --- | ---: | ---: | ---: |
+| Measure, width 220 | 1.326 ms, 285.7 KB | 57.43 us, 233.18 KB | 23.1x faster, 18% less memory |
+| Measure, width 440 | 1.242 ms, 215.05 KB | 47.08 us, 180.2 KB | 26.4x faster, 16% less memory |
+| Measure, width 880 | 1.215 ms, 185.08 KB | 41.85 us, 157.44 KB | 29.0x faster, 15% less memory |
+| Selected measure, width 220 | 1.325 ms, 285.7 KB | 768.82 us, 1.59 MB | 1.7x faster, higher memory |
+| Selected measure, width 440 | 1.262 ms, 215.05 KB | 722.45 us, 1.54 MB | 1.7x faster, higher memory |
+| Selected measure, width 880 | 1.213 ms, 185.08 KB | 734.64 us, 1.52 MB | 1.7x faster, higher memory |
+| Headless frame capture | 397.5 us, 10.29 KB | 10.121 ms, 13.73 MB | current ProTextBox render path is slower |
+
+The main optimization achieved for `ProTextBox` is faster measurement on the ProText path while keeping the Fluent template hosted by `ProTextPresenter`. The plain measurement path also allocates less than Avalonia `TextBox`. Selection rendering is correct but currently allocation-heavy, and full headless frame capture is much slower than Avalonia `TextBox`; that is the next clear performance target.
 
 ## Verification
 

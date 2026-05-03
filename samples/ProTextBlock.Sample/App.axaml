@@ -3,6 +3,14 @@
              x:Class="ProTextBlock.Sample.App"
              RequestedThemeVariant="Light">
 
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://ProTextBlock/Themes/Fluent.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
         <Style Selector="Window">

@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using ProTextBlockCacheApi = ProTextBlock.ProTextBlockCache;
 using ProTextBlockControl = ProTextBlock.ProTextBlock;
+using ProTextBoxControl = ProTextBlock.ProTextBox;
 using ProTextPresenterControl = ProTextBlock.ProTextPresenter;
 
 namespace ProTextBlock.Sample;
@@ -67,6 +68,7 @@ public partial class MainWindow : Window
 
         ApplyPresenterText(PresenterDemo, fontSize, wrapping, useGlobalCache);
         ApplyPresenterText(PresenterInlineDemo, fontSize, wrapping, useGlobalCache);
+        ApplyEditableText(corpus.Text, fontSize, wrapping, useGlobalCache);
 
         foreach (var child in AvaloniaDenseGrid.Children)
         {
@@ -138,6 +140,37 @@ public partial class MainWindow : Window
         presenter.LineHeight = Math.Round(fontSize * 1.42);
         presenter.TextWrapping = wrapping;
         presenter.UseGlobalCache = useGlobalCache;
+    }
+
+    private void ApplyEditableText(string text, double fontSize, TextWrapping wrapping, bool useGlobalCache)
+    {
+        var selectedEnd = Math.Min(text.Length, 120);
+
+        AvaloniaEditBox.Text = text;
+        AvaloniaEditBox.FontSize = fontSize;
+        AvaloniaEditBox.LineHeight = Math.Round(fontSize * 1.42);
+        AvaloniaEditBox.TextWrapping = wrapping;
+        AvaloniaEditBox.SelectionStart = Math.Min(16, selectedEnd);
+        AvaloniaEditBox.SelectionEnd = selectedEnd;
+        AvaloniaEditBox.CaretIndex = selectedEnd;
+
+        ApplyProTextBox(ProEditBox, text, fontSize, wrapping, useGlobalCache);
+        ProEditBox.SelectionStart = Math.Min(16, selectedEnd);
+        ProEditBox.SelectionEnd = selectedEnd;
+        ProEditBox.CaretIndex = selectedEnd;
+
+        ApplyProTextBox(ProPlaceholderBox, string.Empty, fontSize, wrapping, useGlobalCache);
+        ApplyProTextBox(ProPasswordBox, "pretext-password", fontSize, TextWrapping.NoWrap, useGlobalCache);
+        ProPasswordBox.CaretIndex = ProPasswordBox.Text?.Length ?? 0;
+    }
+
+    private static void ApplyProTextBox(ProTextBoxControl textBox, string text, double fontSize, TextWrapping wrapping, bool useGlobalCache)
+    {
+        textBox.Text = text;
+        textBox.FontSize = fontSize;
+        textBox.LineHeight = Math.Round(fontSize * 1.42);
+        textBox.TextWrapping = wrapping;
+        textBox.UseGlobalCache = useGlobalCache;
     }
 
     private void UpdateCacheStatus()

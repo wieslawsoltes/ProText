@@ -155,6 +155,50 @@
                     <Border Classes="panel" Padding="18">
                         <StackPanel Spacing="14">
                             <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+                                <TextBlock Classes="sectionTitle" Text="Avalonia TextBox" />
+                                <TextBlock Grid.Column="1" Classes="sectionTitle" Text="ProTextBox" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+                                <TextBox x:Name="AvaloniaEditBox"
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         MinHeight="118"
+                                         LineHeight="23"
+                                         SelectionBrush="#663B82F6"
+                                         SelectionForegroundBrush="#FFFFFF" />
+
+                                <pro:ProTextBox x:Name="ProEditBox"
+                                                Grid.Column="1"
+                                                AcceptsReturn="True"
+                                                TextWrapping="Wrap"
+                                                MinHeight="118"
+                                                LineHeight="23"
+                                                SelectionBrush="#663B82F6"
+                                                SelectionForegroundBrush="#FFFFFF" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+                                <pro:ProTextBox x:Name="ProPlaceholderBox"
+                                                PlaceholderText="Search cached prepared text"
+                                                UseFloatingPlaceholder="True"
+                                                TextWrapping="Wrap"
+                                                LineHeight="23" />
+
+                                <pro:ProTextBox x:Name="ProPasswordBox"
+                                                Grid.Column="1"
+                                                Classes="revealPasswordButton"
+                                                Text="pretext-password"
+                                                PasswordChar="*"
+                                                TextWrapping="NoWrap"
+                                                LineHeight="23" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="panel" Padding="18">
+                        <StackPanel Spacing="14">
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
                                 <TextBlock Classes="sectionTitle" Text="Dense Avalonia TextBlocks" />
                                 <TextBlock Grid.Column="1" Classes="sectionTitle" Text="Dense ProTextBlocks" />
                             </Grid>
