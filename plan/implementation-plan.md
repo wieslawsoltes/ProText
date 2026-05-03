@@ -13,6 +13,8 @@
 - Add styled properties for `UseGlobalCache`, `UsePretextRendering`, `PretextWhiteSpace`, `PretextWordBreak`, and `PretextLineHeightMultiplier`.
 - Override `MeasureOverride`, `ArrangeOverride`, and `Render`.
 - Use a Pretext rich-inline path for plain text, styled runs, trimming, decorations, letter spacing, font-feature cache identity, and solid or gradient foreground brushes.
+- Extract shared inline helpers for `Run`, `Span`, `Bold`, `Italic`, `Underline`, `LineBreak`, immutable brush snapshots, decoration snapshots, rich paragraphs, and logical text offsets.
+- Add `ProTextPresenter`, derived from `Avalonia.Controls.Control`, with presenter-style text, inline, selection, caret, preedit, password, hit-test, and measurement APIs backed by the shared Pretext rich-content and layout snapshot pipeline.
 - Keep all text rendering in the Pretext-powered path; do not add or use an internal Avalonia `TextBlock` fallback visual.
 - Add `ProTextBlockCache` for shared prepared text cache management and diagnostics.
 - Add small internal helper types for font descriptor building, layout snapshots, and Skia drawing.
@@ -28,7 +30,7 @@
 ## 4. Sample App
 
 - Build an Avalonia desktop sample with two synchronized columns: original `TextBlock` and new `ProTextBlock`.
-- Include long paragraphs, resize-sensitive wrapping, varied fonts, alignment, padding, and a dense repeated-text grid.
+- Include long paragraphs, resize-sensitive wrapping, varied fonts, alignment, padding, rich inline text, `ProTextPresenter`, and a dense repeated-text grid.
 - Include controls for global cache, Pretext fast path, wrapping, max lines, font size, and text corpus.
 - Use restrained product-tool styling: compact controls, clear comparison surface, and no decorative dashboard-card clutter.
 
@@ -37,6 +39,7 @@
 - Add unit tests for cache reuse, cache bypass, property invalidation, rich-path eligibility, multilingual Pretext rendering, and the no-Avalonia-fallback invariant.
 - Add headless render tests that show `ProTextBlock` and `TextBlock` in the same window and capture a frame.
 - Add measurement tests for wrapping, no-wrap, max lines, and padding.
+- Add headless and layout tests for `ProTextPresenter` measure, caret bounds, hit testing, selection rendering, password masking, preedit text, and inline rendering.
 
 ## 6. Benchmarks
 
@@ -48,6 +51,8 @@
   - `ProTextBlock` measure path
   - rich inline and feature-heavy `TextBlock` versus `ProTextBlock` measure paths
   - headless render frame comparison
+- Add dedicated inline benchmark project for `TextBlock`, `ProTextBlock`, and `ProTextPresenter` inline measurement.
+- Add dedicated presenter benchmark project for presenter measurement, caret bounds, hit testing, selection, and render capture.
 - Keep benchmark input corpora realistic: short label, paragraph, and large repeated body text.
 
 ## 7. Verification
@@ -56,4 +61,5 @@
 - Build the solution.
 - Run tests.
 - Run a smoke benchmark or at least verify the benchmark project builds.
+- Verify benchmark discovery for the base, inline, and presenter benchmark projects.
 - Start the sample app if the environment can launch an Avalonia desktop process; otherwise report the command.

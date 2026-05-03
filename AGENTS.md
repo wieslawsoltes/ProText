@@ -4,6 +4,8 @@
 
 Build `ProTextBlock`, a high-performance Avalonia 12.x text display control powered by PretextSharp `0.1.0`. The control should preserve the public text-related `TextBlock` API surface as much as possible while keeping layout, measurement, caching, and rendering on the Pretext-powered path.
 
+Also maintain `ProTextPresenter`, a reusable Pretext-powered presenter for custom editable text surfaces. It shares the same rich inline, layout, cache, and Skia rendering core as `ProTextBlock` and provides presenter-style caret, selection, preedit, password, hit-test, and measurement APIs.
+
 ## Hard Requirements
 
 - Target Avalonia `12.x.x` with the current package baseline in `Directory.Packages.props`.
@@ -15,6 +17,7 @@ Build `ProTextBlock`, a high-performance Avalonia 12.x text display control powe
 - Keep per-control layout snapshots width-local so global cache keys do not grow by viewport width.
 - Keep render operations free of live mutable Avalonia brush/decoration objects; snapshot render styles into immutable ProText value data.
 - Preserve layout-only and render fingerprints separately: layout fingerprints drive global Pretext prepared-content cache reuse; render fingerprints invalidate control-local snapshots.
+- Keep reusable inline and layout code shared between `ProTextBlock` and `ProTextPresenter`; avoid duplicating inline flattening or render-style snapshot logic.
 
 ## Text And Rendering Requirements
 
@@ -27,20 +30,24 @@ Build `ProTextBlock`, a high-performance Avalonia 12.x text display control powe
 - Multilingual text must remain on the Pretext path. Use Pretext segmentation and the ProTextBlock Skia font resolver for font fallback instead of Avalonia fallback.
 - Rendering should use Skia through Avalonia custom drawing with `ISkiaSharpApiLeaseFeature`.
 - If the Skia lease is unavailable, the custom draw operation may skip drawing rather than falling back to Avalonia `TextBlock`.
+- `ProTextPresenter` must keep selection, caret, preedit, password display, inlines, and hit testing on the Pretext/shared-rendering path. Do not call Avalonia `TextLayout` or use Avalonia `TextPresenter` internals from this package.
 
 ## API Compatibility Goals
 
 - Mirror the public text-related `TextBlock` properties and attached property helpers where practical: `Text`, `Inlines`, `Background`, `Padding`, `Foreground`, font family/size/style/weight/stretch/features, alignment, wrapping, trimming, decorations, line height/spacing, letter spacing, max lines, and baseline offset.
 - Additional properties include `UseGlobalCache`, `UsePretextRendering`, `PretextWhiteSpace`, `PretextWordBreak`, and `PretextLineHeightMultiplier`.
 - `UsePretextRendering` must not activate an Avalonia `TextBlock` fallback. If disabled, it should not render through Avalonia `TextBlock`.
+- `ProTextPresenter` should provide TextPresenter-like public behavior for custom controls, but it is not a direct `PART_TextPresenter` replacement for Avalonia `TextBox` because built-in `TextBox` currently expects Avalonia's own `TextPresenter` type.
 
 ## Samples, Tests, Benchmarks, Docs
 
 - Maintain a sample app comparing Avalonia `TextBlock` and `ProTextBlock` side by side. The sample may use normal Avalonia `TextBlock` as the baseline comparison outside the `ProTextBlock` control.
 - Keep sample comparison content visually fair: when comparing inline behavior, both sides should use equivalent text and styling unless the sample is explicitly demonstrating a ProTextBlock-only feature.
+- Include `ProTextPresenter` sample content showing selection/caret behavior and rich inline presentation.
 - Include dense scrolling/sample content for artifact checks and cache visibility.
 - Maintain headless UI tests for measurement, rich rendering, cache behavior, multilingual Pretext-path behavior, and scroll rendering smoke coverage.
-- Maintain BenchmarkDotNet benchmarks comparing Avalonia `TextBlock`, `ProTextBlock`, rich text, global/local cache paths, Pretext cold prepare, and headless render capture.
+- Maintain headless UI tests for `ProTextPresenter` measurement, caret bounds, hit testing, selection rendering, preedit text, password masking, and inline rendering.
+- Maintain BenchmarkDotNet benchmarks comparing Avalonia `TextBlock`, `ProTextBlock`, rich text, global/local cache paths, Pretext cold prepare, headless render capture, inline-specific paths, and `ProTextPresenter` presenter operations.
 - Keep `README.md`, `plan/technical-spec.md`, and `plan/implementation-plan.md` aligned with actual behavior.
 
 ## Verification Commands
@@ -57,6 +64,8 @@ For benchmark discovery or execution:
 
 ```bash
 dotnet run -c Release --project benchmarks/ProTextBlock.Benchmarks/ProTextBlock.Benchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProTextBlock.InlineBenchmarks/ProTextBlock.InlineBenchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProTextBlock.PresenterBenchmarks/ProTextBlock.PresenterBenchmarks.csproj -- --list flat
 ```
 
 ## Engineering Guidance

@@ -1,15 +1,22 @@
 # ProTextBlock
 
-`ProTextBlock` is a high-performance Avalonia 12 text control powered by PretextSharp `0.1.0`.
+`ProTextBlock` is a high-performance Avalonia 12 text rendering library powered by PretextSharp `0.1.0`.
 
-The control mirrors the text-related `TextBlock` API and uses Pretext prepared layout plus Skia drawing for plain text and rich display text. Inline runs, trimming, decorations, letter spacing, font-feature-aware cache keys, multilingual text, Skia font fallback, and solid or gradient foreground brushes stay on the Pretext rendering path. `ProTextBlock` does not delegate rendering to an internal Avalonia `TextBlock`.
+The package provides two controls:
+
+- `ProTextBlock`, a display control that mirrors the text-related `TextBlock` API surface where public Avalonia APIs make that practical.
+- `ProTextPresenter`, a reusable TextPresenter-like display component for editable surfaces that need Pretext-powered measurement, selection rectangles, caret bounds, password masking, preedit display, and rich inline presentation.
+
+Both controls use shared rich-inline flattening, Pretext prepared layout, and Skia drawing. Inline runs, trimming, decorations, letter spacing, font-feature-aware cache keys, multilingual text, Skia font fallback, and solid or gradient foreground brushes stay on the Pretext rendering path. The library does not delegate rendering to an internal Avalonia `TextBlock`.
 
 ## Projects
 
 - `src/ProTextBlock` - control library.
-- `samples/ProTextBlock.Sample` - desktop comparison app for `TextBlock` and `ProTextBlock`.
+- `samples/ProTextBlock.Sample` - desktop comparison app for `TextBlock`, `ProTextBlock`, inline content, and `ProTextPresenter`.
 - `tests/ProTextBlock.Tests` - unit and Avalonia headless render tests.
 - `benchmarks/ProTextBlock.Benchmarks` - BenchmarkDotNet layout and headless render benchmarks.
+- `benchmarks/ProTextBlock.InlineBenchmarks` - dedicated inline layout benchmarks.
+- `benchmarks/ProTextBlock.PresenterBenchmarks` - dedicated presenter measurement, hit-test, caret, selection, and render benchmarks.
 - `plan` - technical specification and implementation plan.
 
 ## Basic Usage
@@ -23,12 +30,48 @@ The control mirrors the text-related `TextBlock` API and uses Pretext prepared l
 
 Global caching is enabled by default and can be disabled per control with `UseGlobalCache="False"`.
 
+Rich inline content uses Avalonia document inline types, but layout and rendering remain on the shared Pretext path:
+
+```xml
+<pro:ProTextBlock xmlns:pro="clr-namespace:ProTextBlock;assembly=ProTextBlock"
+                                    xmlns:docs="clr-namespace:Avalonia.Controls.Documents;assembly=Avalonia.Controls"
+                                    TextWrapping="Wrap">
+    <docs:Run Text="Inline content: " />
+    <docs:Bold>bold</docs:Bold>
+    <docs:Run Text=", " />
+    <docs:Italic>italic</docs:Italic>
+    <docs:Run Text=", " />
+    <docs:Underline>underlined</docs:Underline>
+</pro:ProTextBlock>
+```
+
+`ProTextPresenter` is intended for custom editable controls or text-hosting surfaces. It exposes presenter-style properties and methods such as `CaretIndex`, `SelectionStart`, `SelectionEnd`, `PreeditText`, `PasswordChar`, `ShowCaret()`, `HideCaret()`, `GetCaretBounds(int)`, and `GetCharacterIndex(Point)`.
+
+```xml
+<pro:ProTextPresenter xmlns:pro="clr-namespace:ProTextBlock;assembly=ProTextBlock"
+                      Text="Editable surface text presented through PretextSharp"
+                      TextWrapping="Wrap"
+                      CaretIndex="24"
+                      SelectionStart="9"
+                      SelectionEnd="16" />
+```
+
+Avalonia `TextBox` currently expects its template part to be Avalonia's own `TextPresenter` type, so `ProTextPresenter` is a reusable presenter for new/custom controls rather than a drop-in `PART_TextPresenter` replacement for the built-in `TextBox` template.
+
+## Rendering Model
+
+The shared pipeline flattens plain text or supported inlines into immutable `ProTextRichContent`, prepares rich inline paragraphs through PretextSharp, keeps width-local layout snapshots per control, and renders retained custom draw operations through Skia. Render operations store immutable brush and decoration snapshots instead of live Avalonia brush objects.
+
+Supported text inlines are `Run`, `Span`, `Bold`, `Italic`, `Underline`, and `LineBreak`. `InlineUIContainer` is skipped because it is visual content, not text content, and the library does not create an Avalonia fallback visual.
+
 ## Verification
 
 ```bash
 dotnet build ProTextBlock.slnx
 dotnet test tests/ProTextBlock.Tests/ProTextBlock.Tests.csproj
 dotnet run -c Release --project benchmarks/ProTextBlock.Benchmarks/ProTextBlock.Benchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProTextBlock.InlineBenchmarks/ProTextBlock.InlineBenchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProTextBlock.PresenterBenchmarks/ProTextBlock.PresenterBenchmarks.csproj -- --list flat
 ```
 
 Run the sample app with:

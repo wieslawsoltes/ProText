@@ -50,6 +50,23 @@ Avalonia's in-repo `TextBlock` has access to internal infrastructure such as `II
 - `PretextWordBreak`: maps to Pretext `WordBreakMode`, default `Normal`.
 - `PretextLineHeightMultiplier`: fallback line-height multiplier used when `LineHeight` is `NaN`, default `1.2`.
 
+`ProTextPresenter` exposes a reusable TextPresenter-like surface for custom editors and text-hosting controls. It uses the same shared Pretext rich-content builder and layout snapshot code as `ProTextBlock`, and includes:
+
+- `Text`
+- `Inlines`
+- `PreeditText`
+- `PreeditTextCursorPosition`
+- `Background`
+- `Foreground`
+- font family/size/style/weight/stretch/features
+- text alignment, wrapping, trimming, decorations, line height/spacing, and letter spacing
+- `CaretIndex`, `ShowCaret()`, `HideCaret()`, `MoveCaretToTextPosition(int)`, and `MoveCaretToPoint(Point)`
+- `SelectionStart`, `SelectionEnd`, `ShowSelectionHighlight`, `SelectionBrush`, and `SelectionForegroundBrush`
+- `PasswordChar` and `RevealPassword`
+- `GetCaretBounds(int)`, `GetCharacterIndex(Point)`, and `MeasureText(double)`
+
+Avalonia's built-in `TextBox` template part is strongly typed to Avalonia's internal `TextPresenter` control. `ProTextPresenter` is therefore usable by custom controls and future ProText-based editable controls, but it is not a direct drop-in `PART_TextPresenter` replacement for Avalonia `TextBox` without changes in Avalonia itself or a custom text box implementation.
+
 Static cache API:
 
 - `ProTextBlockCache.Clear()` clears the library-level cache and Pretext's internal cache.
@@ -70,12 +87,14 @@ The Pretext path is enabled when `UsePretextRendering == true` and the content c
 
 When enabled:
 
-1. Flatten plain text or inline content into styled Pretext rich-inline items.
+1. Flatten plain text or inline content into styled `ProTextRichContent` using shared `ProTextInlineBuilder` and `ProTextRichContentBuilder` helpers.
 2. Convert Avalonia font properties to an extended Pretext font string that includes ProTextBlock tracking, stretch, and feature markers.
 3. Retrieve or prepare `PreparedRichInline` instances through `PretextLayout.PrepareRichInline`.
 4. Measure by walking `RichInlineLineRange` data and only materialize fragment strings for retained visible lines.
 5. Render with an Avalonia `ICustomDrawOperation` and `ISkiaSharpApiLeaseFeature` when the active renderer is Skia.
 6. Draw styled fragments with per-run fonts, Skia font fallback, brushes, letter spacing, and decorations.
+
+`ProTextPresenter` additionally uses text-index metadata on retained layout fragments for caret bounds, hit testing, and selection rectangles. These operations still use the Pretext materialized line data and Skia-backed text measurement helpers; they do not call Avalonia `TextLayout` or `TextPresenter` internals.
 
 Render operations retain value snapshots of foreground brushes, gradient stops, and text decorations instead of live Avalonia objects. This keeps the retained custom drawing data stable while the compositor scrolls or reuses render data.
 
@@ -125,17 +144,20 @@ Pretext measurement returns line count and widths using cached text segment metr
 Known v1 limitations:
 
 - embedded controls inside `InlineUIContainer` are not rendered by `ProTextBlock`
+- embedded controls inside `InlineUIContainer` are not rendered by `ProTextPresenter`
 - complex-script shaping is limited by the active Skia/Pretext backend; font fallback is handled by the ProTextBlock Skia font resolver
 - image, visual, and drawing foreground brushes are not translated to Skia text shaders yet
 - OpenType font features are part of the cache/layout identity; final shaping depends on the available Skia backend support
-- selection is not included; `SelectableTextBlock` is out of scope
+- `ProTextPresenter` selection/caret APIs cover presenter-style display and hit testing, but full text editing command handling and built-in `TextBox` replacement are out of scope for this package phase
 
 ## Projects
 
 - `src/ProTextBlock`: control library
-- `samples/ProTextBlock.Sample`: Avalonia desktop sample comparing `TextBlock` and `ProTextBlock`
+- `samples/ProTextBlock.Sample`: Avalonia desktop sample comparing `TextBlock`, `ProTextBlock`, inline content, and `ProTextPresenter`
 - `tests/ProTextBlock.Tests`: xUnit plus Avalonia headless render tests
 - `benchmarks/ProTextBlock.Benchmarks`: BenchmarkDotNet layout/render benchmarks
+- `benchmarks/ProTextBlock.InlineBenchmarks`: BenchmarkDotNet inline layout benchmarks
+- `benchmarks/ProTextBlock.PresenterBenchmarks`: BenchmarkDotNet presenter layout, caret, hit-test, selection, and render benchmarks
 
 ## Verification
 
@@ -143,4 +165,6 @@ Known v1 limitations:
 - `dotnet build ProTextBlock.slnx`
 - `dotnet test tests/ProTextBlock.Tests/ProTextBlock.Tests.csproj`
 - `dotnet run -c Release --project benchmarks/ProTextBlock.Benchmarks/ProTextBlock.Benchmarks.csproj -- --filter *`
+- `dotnet run -c Release --project benchmarks/ProTextBlock.InlineBenchmarks/ProTextBlock.InlineBenchmarks.csproj -- --list flat`
+- `dotnet run -c Release --project benchmarks/ProTextBlock.PresenterBenchmarks/ProTextBlock.PresenterBenchmarks.csproj -- --list flat`
 - sample app launch: `dotnet run --project samples/ProTextBlock.Sample/ProTextBlock.Sample.csproj`
