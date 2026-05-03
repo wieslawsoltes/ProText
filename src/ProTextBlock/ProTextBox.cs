@@ -78,6 +78,12 @@ public class ProTextBox : TemplatedControl
         AvaloniaProperty.Register<ProTextBox, bool>(nameof(AcceptsTab));
 
     /// <summary>
+    /// Defines the <see cref="NewLine"/> property.
+    /// </summary>
+    public static readonly StyledProperty<string> NewLineProperty =
+        AvaloniaProperty.Register<ProTextBox, string>(nameof(NewLine), Environment.NewLine);
+
+    /// <summary>
     /// Defines the <see cref="IsReadOnly"/> property.
     /// </summary>
     public static readonly StyledProperty<bool> IsReadOnlyProperty =
@@ -106,6 +112,12 @@ public class ProTextBox : TemplatedControl
     /// </summary>
     public static readonly StyledProperty<int> MaxLengthProperty =
         AvaloniaProperty.Register<ProTextBox, int>(nameof(MaxLength));
+
+    /// <summary>
+    /// Defines the <see cref="UndoLimit"/> property.
+    /// </summary>
+    public static readonly StyledProperty<int> UndoLimitProperty =
+        AvaloniaProperty.Register<ProTextBox, int>(nameof(UndoLimit), 100);
 
     /// <summary>
     /// Defines the <see cref="PasswordChar"/> property.
@@ -210,6 +222,8 @@ public class ProTextBox : TemplatedControl
         AvaloniaProperty.Register<ProTextBox, TimeSpan>(nameof(CaretBlinkInterval), TimeSpan.FromMilliseconds(500));
 
     private ProTextPresenter? _presenter;
+    private readonly Stack<TextEditState> _undoStack = new();
+    private readonly Stack<TextEditState> _redoStack = new();
 
     static ProTextBox()
     {
@@ -309,6 +323,15 @@ public class ProTextBox : TemplatedControl
     }
 
     /// <summary>
+    /// Gets or sets the newline text inserted when Enter is accepted.
+    /// </summary>
+    public string NewLine
+    {
+        get => GetValue(NewLineProperty);
+        set => SetValue(NewLineProperty, value);
+    }
+
+    /// <summary>
     /// Gets or sets whether the text is read-only.
     /// </summary>
     public bool IsReadOnly
@@ -351,6 +374,15 @@ public class ProTextBox : TemplatedControl
     {
         get => GetValue(MaxLengthProperty);
         set => SetValue(MaxLengthProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the number of undo states retained by the control.
+    /// </summary>
+    public int UndoLimit
+    {
+        get => GetValue(UndoLimitProperty);
+        set => SetValue(UndoLimitProperty, Math.Max(0, value));
     }
 
     /// <summary>
@@ -507,6 +539,25 @@ public class ProTextBox : TemplatedControl
     }
 
     /// <summary>
+    /// Gets or sets selected text.
+    /// </summary>
+    public string SelectedText
+    {
+        get => GetSelection();
+        set => ReplaceSelection(value ?? string.Empty, recordUndo: true);
+    }
+
+    /// <summary>
+    /// Gets whether an undo operation can currently execute.
+    /// </summary>
+    public bool CanUndo => _undoStack.Count > 0;
+
+    /// <summary>
+    /// Gets whether a redo operation can currently execute.
+    /// </summary>
+    public bool CanRedo => _redoStack.Count > 0;
+
+    /// <summary>
     /// Gets whether cut can currently execute.
     /// </summary>
     public bool CanCut => !IsReadOnly && !IsPasswordBox && SelectionStart != SelectionEnd;
@@ -544,8 +595,37 @@ public class ProTextBox : TemplatedControl
             return;
         }
 
+        SnapshotUndoRedo();
         SetCurrentValue(TextProperty, string.Empty);
         SetCaretAndSelection(0);
+    }
+
+    /// <summary>
+    /// Restores the previous edit state when available.
+    /// </summary>
+    public void Undo()
+    {
+        if (_undoStack.Count == 0)
+        {
+            return;
+        }
+
+        _redoStack.Push(CaptureState());
+        RestoreState(_undoStack.Pop());
+    }
+
+    /// <summary>
+    /// Restores the next edit state when available.
+    /// </summary>
+    public void Redo()
+    {
+        if (_redoStack.Count == 0)
+        {
+            return;
+        }
+
+        _undoStack.Push(CaptureState());
+        RestoreState(_redoStack.Pop());
     }
 
     /// <summary>
@@ -566,7 +646,8 @@ public class ProTextBox : TemplatedControl
             await clipboard.SetTextAsync(text);
         }
 
-        DeleteSelection();
+        SnapshotUndoRedo();
+        DeleteSelection(recordUndo: false);
     }
 
     /// <summary>
@@ -602,7 +683,7 @@ public class ProTextBox : TemplatedControl
 
         if (!string.IsNullOrEmpty(text))
         {
-            InsertText(text);
+            InsertText(text, recordUndo: true);
         }
     }
 
@@ -637,6 +718,7 @@ public class ProTextBox : TemplatedControl
     protected override void OnLostFocus(FocusChangedEventArgs e)
     {
         base.OnLostFocus(e);
+        SetCurrentValue(RevealPasswordProperty, false);
         _presenter?.HideCaret();
     }
 
@@ -670,7 +752,7 @@ public class ProTextBox : TemplatedControl
             return;
         }
 
-        InsertText(e.Text);
+        InsertText(e.Text, recordUndo: true);
         e.Handled = true;
     }
 
@@ -714,6 +796,20 @@ public class ProTextBox : TemplatedControl
             return;
         }
 
+        if (keymap is not null && keymap.Undo.Any(gesture => gesture.Matches(e)))
+        {
+            Undo();
+            e.Handled = true;
+            return;
+        }
+
+        if (keymap is not null && keymap.Redo.Any(gesture => gesture.Matches(e)))
+        {
+            Redo();
+            e.Handled = true;
+            return;
+        }
+
         switch (e.Key)
         {
             case Key.Left:
@@ -735,28 +831,28 @@ public class ProTextBox : TemplatedControl
             case Key.Back:
                 if (!IsReadOnly)
                 {
-                    Backspace();
+                    Backspace(e.KeyModifiers.HasFlag(KeyModifiers.Control) && !IsPasswordBox);
                     e.Handled = true;
                 }
                 break;
             case Key.Delete:
                 if (!IsReadOnly)
                 {
-                    Delete();
+                    Delete(e.KeyModifiers.HasFlag(KeyModifiers.Control) && !IsPasswordBox);
                     e.Handled = true;
                 }
                 break;
             case Key.Enter:
                 if (AcceptsReturn && !IsReadOnly)
                 {
-                    InsertText(Environment.NewLine);
+                    InsertText(NewLine, recordUndo: true);
                     e.Handled = true;
                 }
                 break;
             case Key.Tab:
                 if (AcceptsTab && !IsReadOnly)
                 {
-                    InsertText("\t");
+                    InsertText("\t", recordUndo: true);
                     e.Handled = true;
                 }
                 break;
@@ -774,6 +870,14 @@ public class ProTextBox : TemplatedControl
             CoerceValue(SelectionStartProperty);
             CoerceValue(SelectionEndProperty);
             UpdatePseudoClasses();
+        }
+        else if (change.Property == SelectionStartProperty && SelectionStart == SelectionEnd)
+        {
+            SetCurrentValue(CaretIndexProperty, SelectionStart);
+        }
+        else if (change.Property == SelectionEndProperty && SelectionStart == SelectionEnd)
+        {
+            SetCurrentValue(CaretIndexProperty, SelectionEnd);
         }
         else if (change.Property == CaretIndexProperty)
         {
@@ -802,7 +906,7 @@ public class ProTextBox : TemplatedControl
         PseudoClasses.Set(EmptyPseudoClass, string.IsNullOrEmpty(Text));
     }
 
-    private void InsertText(string input)
+    private void InsertText(string input, bool recordUndo)
     {
         input = SanitizeInput(input);
 
@@ -825,11 +929,7 @@ public class ProTextBox : TemplatedControl
             input = input[..remaining];
         }
 
-        var newText = text.Remove(selectionStart, selectionEnd - selectionStart).Insert(selectionStart, input);
-        var caretIndex = selectionStart + input.Length;
-
-        SetCurrentValue(TextProperty, newText);
-        SetCaretAndSelection(caretIndex);
+        ReplaceSelection(input, recordUndo);
     }
 
     private string SanitizeInput(string input)
@@ -847,9 +947,9 @@ public class ProTextBox : TemplatedControl
         return input;
     }
 
-    private void Backspace()
+    private void Backspace(bool wholeWord)
     {
-        if (DeleteSelection())
+        if (DeleteSelection(recordUndo: true))
         {
             return;
         }
@@ -862,14 +962,15 @@ public class ProTextBox : TemplatedControl
             return;
         }
 
-        var start = Math.Max(0, caretIndex - 1);
+        var start = wholeWord ? FindPreviousWordDeletionStart(text, caretIndex) : Math.Max(0, caretIndex - 1);
+        SnapshotUndoRedo();
         SetCurrentValue(TextProperty, text.Remove(start, caretIndex - start));
         SetCaretAndSelection(start);
     }
 
-    private void Delete()
+    private void Delete(bool wholeWord)
     {
-        if (DeleteSelection())
+        if (DeleteSelection(recordUndo: true))
         {
             return;
         }
@@ -882,11 +983,13 @@ public class ProTextBox : TemplatedControl
             return;
         }
 
-        SetCurrentValue(TextProperty, text.Remove(caretIndex, 1));
+        var end = wholeWord ? FindNextWordDeletionEnd(text, caretIndex) : caretIndex + 1;
+        SnapshotUndoRedo();
+        SetCurrentValue(TextProperty, text.Remove(caretIndex, end - caretIndex));
         SetCaretAndSelection(caretIndex);
     }
 
-    private bool DeleteSelection()
+    private bool DeleteSelection(bool recordUndo)
     {
         var text = Text ?? string.Empty;
         var (selectionStart, selectionEnd) = GetSelectionRange();
@@ -896,9 +999,47 @@ public class ProTextBox : TemplatedControl
             return false;
         }
 
+        if (recordUndo)
+        {
+            SnapshotUndoRedo();
+        }
+
         SetCurrentValue(TextProperty, text.Remove(selectionStart, selectionEnd - selectionStart));
         SetCaretAndSelection(selectionStart);
         return true;
+    }
+
+    private void ReplaceSelection(string replacement, bool recordUndo)
+    {
+        if (IsReadOnly)
+        {
+            return;
+        }
+
+        replacement = SanitizeInput(replacement);
+
+        var text = Text ?? string.Empty;
+        var (selectionStart, selectionEnd) = GetSelectionRange();
+        var remaining = MaxLength > 0 ? Math.Max(0, MaxLength - (text.Length - (selectionEnd - selectionStart))) : int.MaxValue;
+
+        if (remaining == 0 && replacement.Length > 0)
+        {
+            return;
+        }
+
+        if (replacement.Length > remaining)
+        {
+            replacement = replacement[..remaining];
+        }
+
+        if (recordUndo)
+        {
+            SnapshotUndoRedo();
+        }
+
+        var newText = text.Remove(selectionStart, selectionEnd - selectionStart).Insert(selectionStart, replacement);
+        SetCurrentValue(TextProperty, newText);
+        SetCaretAndSelection(selectionStart + replacement.Length);
     }
 
     private void MoveCaret(int delta, bool selecting)
@@ -942,4 +1083,109 @@ public class ProTextBox : TemplatedControl
         var (start, end) = GetSelectionRange();
         return start == end ? string.Empty : text[start..end];
     }
+
+    private void SnapshotUndoRedo()
+    {
+        var limit = UndoLimit;
+
+        if (limit == 0)
+        {
+            _undoStack.Clear();
+            _redoStack.Clear();
+            return;
+        }
+
+        var state = CaptureState();
+
+        if (_undoStack.TryPeek(out var previous) && previous == state)
+        {
+            return;
+        }
+
+        _undoStack.Push(state);
+        _redoStack.Clear();
+
+        while (_undoStack.Count > limit)
+        {
+            var states = _undoStack.Reverse().TakeLast(limit).ToArray();
+            _undoStack.Clear();
+
+            foreach (var retained in states)
+            {
+                _undoStack.Push(retained);
+            }
+        }
+    }
+
+    private TextEditState CaptureState()
+    {
+        return new TextEditState(Text, CaretIndex, SelectionStart, SelectionEnd);
+    }
+
+    private void RestoreState(TextEditState state)
+    {
+        SetCurrentValue(TextProperty, state.Text);
+        SetCurrentValue(SelectionStartProperty, state.SelectionStart);
+        SetCurrentValue(SelectionEndProperty, state.SelectionEnd);
+        SetCurrentValue(CaretIndexProperty, state.CaretIndex);
+        _presenter?.MoveCaretToTextPosition(state.CaretIndex);
+    }
+
+    private static int FindPreviousWordDeletionStart(string text, int caretIndex)
+    {
+        var index = Math.Clamp(caretIndex, 0, text.Length);
+
+        if (index == 0)
+        {
+            return 0;
+        }
+
+        index--;
+
+        while (index > 0 && char.IsWhiteSpace(text[index]))
+        {
+            index--;
+        }
+
+        while (index > 0 && !char.IsWhiteSpace(text[index - 1]))
+        {
+            index--;
+        }
+
+        return index;
+    }
+
+    private static int FindNextWordDeletionEnd(string text, int caretIndex)
+    {
+        var index = Math.Clamp(caretIndex, 0, text.Length);
+
+        if (index >= text.Length)
+        {
+            return text.Length;
+        }
+
+        if (char.IsWhiteSpace(text[index]))
+        {
+            while (index < text.Length && char.IsWhiteSpace(text[index]))
+            {
+                index++;
+            }
+
+            return index;
+        }
+
+        while (index < text.Length && !char.IsWhiteSpace(text[index]))
+        {
+            index++;
+        }
+
+        while (index < text.Length && char.IsWhiteSpace(text[index]))
+        {
+            index++;
+        }
+
+        return index;
+    }
+
+    private readonly record struct TextEditState(string? Text, int CaretIndex, int SelectionStart, int SelectionEnd);
 }

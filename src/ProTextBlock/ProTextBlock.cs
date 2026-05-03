@@ -172,6 +172,8 @@ public class ProTextBlock : Control
             (control, value) => control.Inlines = value);
 
     private InlineCollection? _inlines;
+    private readonly HashSet<InlineCollection> _observedInlineCollections = new();
+    private readonly HashSet<Inline> _observedInlines = new();
     private ProTextLayoutSnapshot? _layoutSnapshot;
     private ProTextRichCacheKey? _localPreparedKey;
     private ProTextPreparedContent? _localPrepared;
@@ -218,7 +220,7 @@ public class ProTextBlock : Control
     public ProTextBlock()
     {
         _inlines = new InlineCollection();
-        _inlines.Invalidated += OnInlinesInvalidated;
+        AttachInlineCollection(_inlines);
     }
 
     /// <summary>
@@ -442,17 +444,10 @@ public class ProTextBlock : Control
                 return;
             }
 
-            if (_inlines is not null)
-            {
-                _inlines.Invalidated -= OnInlinesInvalidated;
-            }
-
-            if (value is not null)
-            {
-                value.Invalidated += OnInlinesInvalidated;
-            }
+            DetachInlineObservers();
 
             SetAndRaise(InlinesProperty, ref _inlines, value);
+            AttachInlineCollection(value);
             InvalidateProText();
         }
     }
@@ -624,12 +619,71 @@ public class ProTextBlock : Control
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+
+        if (change.Property == TextProperty && _inlines is { Count: > 0 })
+        {
+            _inlines.Clear();
+        }
+
         InvalidateProText();
     }
 
     private void OnInlinesInvalidated(object? sender, EventArgs e)
     {
+        DetachInlineObservers();
+        AttachInlineCollection(_inlines);
         InvalidateProText();
+    }
+
+    private void OnInlinePropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        InvalidateProText();
+    }
+
+    private void AttachInlineCollection(InlineCollection? collection)
+    {
+        if (collection is null || !_observedInlineCollections.Add(collection))
+        {
+            return;
+        }
+
+        collection.Invalidated += OnInlinesInvalidated;
+
+        foreach (var inline in collection)
+        {
+            AttachInline(inline);
+        }
+    }
+
+    private void AttachInline(Inline inline)
+    {
+        if (!_observedInlines.Add(inline))
+        {
+            return;
+        }
+
+        inline.PropertyChanged += OnInlinePropertyChanged;
+
+        if (inline is Span span)
+        {
+            AttachInlineCollection(span.Inlines);
+        }
+    }
+
+    private void DetachInlineObservers()
+    {
+        foreach (var collection in _observedInlineCollections)
+        {
+            collection.Invalidated -= OnInlinesInvalidated;
+        }
+
+        foreach (var inline in _observedInlines)
+        {
+            inline.PropertyChanged -= OnInlinePropertyChanged;
+        }
+
+        _observedInlineCollections.Clear();
+        _observedInlines.Clear();
     }
 
     private void InvalidateProText()
