@@ -90,7 +90,7 @@ Supported text inlines are `Run`, `Span`, `Bold`, `Italic`, `Underline`, and `Li
 
 ## Performance Summary
 
-The latest corrected TextBox benchmark run verifies that the app applies Avalonia's Fluent TextBox theme and the ProText Fluent theme before measuring. The benchmark fails during setup if Avalonia `TextPresenter` or ProText `ProTextPresenter` is missing from the visual tree, and layout measurements alternate width constraints to avoid cached no-op timings.
+The latest corrected TextBox benchmark run verifies that the app applies Avalonia's Fluent TextBox theme and the ProText Fluent theme before measuring. The benchmark fails during setup if Avalonia `TextPresenter` or ProText `ProTextPresenter` is missing from the visual tree, layout measurements alternate width constraints to avoid cached no-op timings, and frame hot paths use one explicit headless render tick plus `GetLastRenderedFrame()` instead of `CaptureRenderedFrame()`'s stabilization loop.
 
 Command used:
 
@@ -102,15 +102,15 @@ Environment: Apple M3 Pro, .NET `10.0.5`, BenchmarkDotNet `0.15.8`, ShortRun job
 
 | Scenario | Avalonia TextBox | ProTextBox | Result |
 | --- | ---: | ---: | ---: |
-| Measure, width 220 | 1.368 ms, 285.7 KB | 52.95 us, 174.84 KB | 25.8x faster, 39% less memory |
-| Measure, width 440 | 1.282 ms, 215.05 KB | 40.25 us, 121.86 KB | 31.9x faster, 43% less memory |
-| Measure, width 880 | 1.550 ms, 185.08 KB | 48.19 us, 99.11 KB | 32.2x faster, 46% less memory |
-| Selected measure, width 220 | 1.353 ms, 285.7 KB | 51.15 us, 174.84 KB | 26.4x faster, 39% less memory |
-| Selected measure, width 440 | 1.337 ms, 215.05 KB | 55.83 us, 121.86 KB | 24.0x faster, 43% less memory |
-| Selected measure, width 880 | 1.666 ms, 185.08 KB | 50.13 us, 99.11 KB | 33.2x faster, 46% less memory |
-| Headless frame capture | 532.1 us, 9.41 KB | 492.3 us, 6.65 KB | 8% faster, 29% less memory |
+| Measure, width 220 | 1.778 ms, 285.7 KB | 51.43 us, 174.84 KB | 34.6x faster, 39% less memory |
+| Measure, width 440 | 1.322 ms, 215.05 KB | 42.78 us, 121.86 KB | 30.9x faster, 43% less memory |
+| Measure, width 880 | 1.307 ms, 185.08 KB | 37.12 us, 99.11 KB | 35.2x faster, 46% less memory |
+| Selected measure, width 220 | 2.237 ms, 285.7 KB | 58.54 us, 174.84 KB | 38.2x faster, 39% less memory |
+| Selected measure, width 440 | 1.607 ms, 215.05 KB | 40.34 us, 121.86 KB | 39.8x faster, 43% less memory |
+| Selected measure, width 880 | 1.446 ms, 185.08 KB | 35.49 us, 99.11 KB | 40.7x faster, 46% less memory |
+| Invalidated frame, single render tick | 306.3 us, 9.09 KB | 318.5 us, 6.24 KB | 4% slower, 31% less memory |
 
-The main optimization achieved for `ProTextBox` is faster, lower-allocation measurement on the ProText path while keeping the Fluent template hosted by `ProTextPresenter`. Stable presenter content, prepared-content reuse, and a small width-local layout cache keep selected measurement aligned with normal measurement. The render path now reuses cached Skia render fonts, records selection and text into a per-layout Skia picture, reuses stable presenter draw operations, and avoids per-frame picture-cache closure allocation. That cuts invalidated-frame allocation from about 13.76 MB to 6.65 KB and moves the latest full TextBox frame run ahead of Avalonia `TextBox`.
+Frame decomposition from the same run shows the fixed headless cost separately: `EmptyWindowFrame` is 58.7 us and `ProTextBoxCaptureOnly` is 47.5 us with about 0.52 KB allocated. The invalidated frame benchmark is therefore mostly Avalonia's render tick plus replaying the cached custom Skia draw operation, not text measurement. The render path reuses cached Skia render fonts, records selection and text into a per-layout Skia picture, reuses stable presenter draw operations, and avoids per-frame picture-cache closure allocation. That cuts invalidated-frame allocation from about 13.76 MB to 6.24 KB, while frame time stays close to Avalonia `TextBox` because both controls still pay the retained-renderer and headless frame costs.
 
 ## Verification
 

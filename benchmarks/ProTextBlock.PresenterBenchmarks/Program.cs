@@ -3,7 +3,9 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Media;
 using Avalonia.Themes.Fluent;
+using Avalonia.Threading;
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
 using ProTextPresenterControl = ProTextBlock.ProTextPresenter;
 
@@ -40,11 +42,15 @@ internal static class PresenterBenchmarkHost
 }
 
 [MemoryDiagnoser]
+[ShortRunJob]
 public class PresenterLayoutBenchmarks
 {
     private ProTextPresenterControl _presenter = null!;
     private ProTextPresenterControl _selectedPresenter = null!;
-    private Window _window = null!;
+    private ProTextPresenterControl _plainFramePresenter = null!;
+    private Window _selectedWindow = null!;
+    private Window _plainFrameWindow = null!;
+    private Window _emptyWindow = null!;
 
     [Params(240, 480, 960)]
     public double Width { get; set; }
@@ -60,19 +66,18 @@ public class PresenterLayoutBenchmarks
         _selectedPresenter.SelectionBrush = Brushes.LightSkyBlue;
         _selectedPresenter.CaretIndex = 220;
         _selectedPresenter.ShowCaret();
+        _plainFramePresenter = CreatePresenter();
 
-        _window = new Window
-        {
-            Width = 720,
-            Height = 320,
-            Background = Brushes.White,
-            Content = new Border
-            {
-                Padding = new Thickness(20),
-                Child = _selectedPresenter
-            }
-        };
-        _window.Show();
+        _selectedWindow = CreateWindow(_selectedPresenter);
+        _plainFrameWindow = CreateWindow(_plainFramePresenter);
+        _emptyWindow = CreateWindow(new Border { Background = Brushes.White });
+        _selectedWindow.Show();
+        _plainFrameWindow.Show();
+        _emptyWindow.Show();
+
+        _ = CaptureFrame(_selectedWindow);
+        _ = CaptureFrame(_plainFrameWindow);
+        _ = CaptureFrame(_emptyWindow);
     }
 
     [Benchmark(Baseline = true)]
@@ -100,9 +105,23 @@ public class PresenterLayoutBenchmarks
     }
 
     [Benchmark]
+    public object EmptyWindowFrame()
+    {
+        return CaptureFrame(_emptyWindow);
+    }
+
+    [Benchmark]
+    public object PresenterPlainFrame()
+    {
+        _plainFramePresenter.InvalidateVisual();
+        return CaptureFrame(_plainFrameWindow);
+    }
+
+    [Benchmark]
     public object PresenterSelectedFrame()
     {
-        return _window.CaptureRenderedFrame()!;
+        _selectedPresenter.InvalidateVisual();
+        return CaptureFrame(_selectedWindow);
     }
 
     private static ProTextPresenterControl CreatePresenter()
@@ -115,5 +134,28 @@ public class PresenterLayoutBenchmarks
             TextWrapping = TextWrapping.Wrap,
             Foreground = Brushes.Black
         };
+    }
+
+    private static Window CreateWindow(Control content)
+    {
+        return new Window
+        {
+            Width = 720,
+            Height = 320,
+            Background = Brushes.White,
+            Content = new Border
+            {
+                Padding = new Thickness(20),
+                Child = content
+            }
+        };
+    }
+
+    private static object CaptureFrame(Window window)
+    {
+        Dispatcher.UIThread.RunJobs();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        return window.GetLastRenderedFrame()
+            ?? throw new InvalidOperationException("The benchmark window did not render a headless frame.");
     }
 }

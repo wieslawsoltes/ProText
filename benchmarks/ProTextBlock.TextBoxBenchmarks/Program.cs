@@ -5,6 +5,7 @@ using Avalonia.Headless;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
 using Avalonia.Themes.Fluent;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
@@ -224,6 +225,9 @@ public class TextBoxRenderBenchmarks
     private ProTextBoxControl _proTextBox = null!;
     private TextPresenter _avaloniaPresenter = null!;
     private ProTextPresenterControl _proPresenter = null!;
+    private Window _emptyWindow = null!;
+    private Window _directProWindow = null!;
+    private ProTextPresenterControl _directProPresenter = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -231,34 +235,64 @@ public class TextBoxRenderBenchmarks
         TextBoxBenchmarkHost.EnsureStarted();
         _avaloniaTextBox = CreateAvaloniaTextBox();
         _proTextBox = CreateProTextBox();
+        _directProPresenter = CreateProTextPresenter();
+        _emptyWindow = CreateWindow(new Border { Background = Brushes.White });
         _avaloniaWindow = CreateWindow(_avaloniaTextBox);
         _proWindow = CreateWindow(_proTextBox);
+        _directProWindow = CreateWindow(_directProPresenter);
+        _emptyWindow.Show();
         _avaloniaWindow.Show();
         _proWindow.Show();
+        _directProWindow.Show();
         _avaloniaTextBox.ApplyTemplate();
         _proTextBox.ApplyTemplate();
         _avaloniaPresenter = FindPresenter<TextPresenter>(_avaloniaWindow,
             "Avalonia TextBox benchmark did not apply the Fluent TextBox theme: TextPresenter was not found.");
         _proPresenter = FindPresenter<ProTextPresenterControl>(_proWindow,
             "ProTextBox benchmark did not apply the ProText Fluent theme: ProTextPresenter was not found.");
-        _ = _avaloniaWindow.CaptureRenderedFrame()
-            ?? throw new InvalidOperationException("The Avalonia benchmark window did not render a headless frame.");
-        _ = _proWindow.CaptureRenderedFrame()
-            ?? throw new InvalidOperationException("The ProText benchmark window did not render a headless frame.");
+        _ = CaptureFrame(_emptyWindow);
+        _ = CaptureFrame(_avaloniaWindow);
+        _ = CaptureFrame(_proWindow);
+        _ = CaptureFrame(_directProWindow);
+    }
+
+    [Benchmark]
+    public object EmptyWindowFrame()
+    {
+        return CaptureFrame(_emptyWindow);
+    }
+
+    [Benchmark]
+    public object AvaloniaTextBoxCaptureOnly()
+    {
+        return CaptureFrame(_avaloniaWindow);
+    }
+
+    [Benchmark]
+    public object ProTextBoxCaptureOnly()
+    {
+        return CaptureFrame(_proWindow);
     }
 
     [Benchmark(Baseline = true)]
     public object AvaloniaTextBoxFrame()
     {
         _avaloniaPresenter.InvalidateVisual();
-        return _avaloniaWindow.CaptureRenderedFrame()!;
+        return CaptureFrame(_avaloniaWindow);
     }
 
     [Benchmark]
     public object ProTextBoxFrame()
     {
         _proPresenter.InvalidateVisual();
-        return _proWindow.CaptureRenderedFrame()!;
+        return CaptureFrame(_proWindow);
+    }
+
+    [Benchmark]
+    public object DirectProTextPresenterFrame()
+    {
+        _directProPresenter.InvalidateVisual();
+        return CaptureFrame(_directProWindow);
     }
 
     private TextBox CreateAvaloniaTextBox()
@@ -299,6 +333,24 @@ public class TextBoxRenderBenchmarks
         };
     }
 
+    private ProTextPresenterControl CreateProTextPresenter()
+    {
+        return new ProTextPresenterControl
+        {
+            Text = _text,
+            FontSize = 18,
+            LineHeight = 26,
+            TextWrapping = TextWrapping.Wrap,
+            SelectionStart = 24,
+            SelectionEnd = 180,
+            CaretIndex = 180,
+            Foreground = Brushes.Black,
+            SelectionBrush = Brushes.LightSkyBlue,
+            SelectionForegroundBrush = Brushes.White,
+            CaretBrush = Brushes.Black
+        };
+    }
+
     private static Window CreateWindow(Control content)
     {
         return new Window
@@ -319,5 +371,13 @@ public class TextBoxRenderBenchmarks
     {
         return window.GetVisualDescendants().OfType<T>().FirstOrDefault()
             ?? throw new InvalidOperationException(message);
+    }
+
+    private static object CaptureFrame(Window window)
+    {
+        Dispatcher.UIThread.RunJobs();
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        return window.GetLastRenderedFrame()
+            ?? throw new InvalidOperationException("The benchmark window did not render a headless frame.");
     }
 }
