@@ -1,0 +1,1170 @@
+using Avalonia;
+using Avalonia.Collections;
+using Avalonia.Controls;
+using Avalonia.Controls.Documents;
+using Avalonia.Input;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Metadata;
+using Avalonia.Threading;
+using Pretext;
+using ProTextBlock.Internal;
+
+namespace ProTextBlock;
+
+/// <summary>
+/// Presents editable or selectable text through the same PretextSharp layout and Skia rendering path used by <see cref="ProTextBlock"/>.
+/// </summary>
+public class ProTextPresenter : Control
+{
+    /// <summary>
+    /// Defines the <see cref="UseGlobalCache"/> property.
+    /// </summary>
+    public static readonly StyledProperty<bool> UseGlobalCacheProperty =
+        AvaloniaProperty.Register<ProTextPresenter, bool>(nameof(UseGlobalCache), true);
+
+    /// <summary>
+    /// Defines the <see cref="UsePretextRendering"/> property.
+    /// </summary>
+    public static readonly StyledProperty<bool> UsePretextRenderingProperty =
+        AvaloniaProperty.Register<ProTextPresenter, bool>(nameof(UsePretextRendering), true);
+
+    /// <summary>
+    /// Defines the <see cref="PretextLineHeightMultiplier"/> property.
+    /// </summary>
+    public static readonly StyledProperty<double> PretextLineHeightMultiplierProperty =
+        AvaloniaProperty.Register<ProTextPresenter, double>(
+            nameof(PretextLineHeightMultiplier),
+            1.2,
+            validate: value => !double.IsNaN(value) && !double.IsInfinity(value) && value > 0);
+
+    /// <summary>
+    /// Defines the <see cref="Text"/> property.
+    /// </summary>
+    public static readonly StyledProperty<string?> TextProperty =
+        TextBlock.TextProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="PreeditText"/> property.
+    /// </summary>
+    public static readonly StyledProperty<string?> PreeditTextProperty =
+        AvaloniaProperty.Register<ProTextPresenter, string?>(nameof(PreeditText));
+
+    /// <summary>
+    /// Defines the <see cref="PreeditTextCursorPosition"/> property.
+    /// </summary>
+    public static readonly StyledProperty<int?> PreeditTextCursorPositionProperty =
+        AvaloniaProperty.Register<ProTextPresenter, int?>(nameof(PreeditTextCursorPosition));
+
+    /// <summary>
+    /// Defines the <see cref="Background"/> property.
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> BackgroundProperty =
+        Border.BackgroundProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="TextAlignment"/> property.
+    /// </summary>
+    public static readonly StyledProperty<TextAlignment> TextAlignmentProperty =
+        TextBlock.TextAlignmentProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="TextWrapping"/> property.
+    /// </summary>
+    public static readonly StyledProperty<TextWrapping> TextWrappingProperty =
+        TextBlock.TextWrappingProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="TextTrimming"/> property.
+    /// </summary>
+    public static readonly StyledProperty<TextTrimming> TextTrimmingProperty =
+        TextBlock.TextTrimmingProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="LineHeight"/> property.
+    /// </summary>
+    public static readonly StyledProperty<double> LineHeightProperty =
+        TextBlock.LineHeightProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="LineSpacing"/> property.
+    /// </summary>
+    public static readonly StyledProperty<double> LineSpacingProperty =
+        TextBlock.LineSpacingProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="LetterSpacing"/> property.
+    /// </summary>
+    public static readonly StyledProperty<double> LetterSpacingProperty =
+        TextBlock.LetterSpacingProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="TextDecorations"/> property.
+    /// </summary>
+    public static readonly StyledProperty<TextDecorationCollection?> TextDecorationsProperty =
+        TextBlock.TextDecorationsProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="FontFeatures"/> property.
+    /// </summary>
+    public static readonly StyledProperty<FontFeatureCollection?> FontFeaturesProperty =
+        TextBlock.FontFeaturesProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="CaretIndex"/> property.
+    /// </summary>
+    public static readonly StyledProperty<int> CaretIndexProperty =
+        AvaloniaProperty.Register<ProTextPresenter, int>(nameof(CaretIndex));
+
+    /// <summary>
+    /// Defines the <see cref="SelectionStart"/> property.
+    /// </summary>
+    public static readonly StyledProperty<int> SelectionStartProperty =
+        AvaloniaProperty.Register<ProTextPresenter, int>(nameof(SelectionStart));
+
+    /// <summary>
+    /// Defines the <see cref="SelectionEnd"/> property.
+    /// </summary>
+    public static readonly StyledProperty<int> SelectionEndProperty =
+        AvaloniaProperty.Register<ProTextPresenter, int>(nameof(SelectionEnd));
+
+    /// <summary>
+    /// Defines the <see cref="ShowSelectionHighlight"/> property.
+    /// </summary>
+    public static readonly StyledProperty<bool> ShowSelectionHighlightProperty =
+        AvaloniaProperty.Register<ProTextPresenter, bool>(nameof(ShowSelectionHighlight), true);
+
+    /// <summary>
+    /// Defines the <see cref="SelectionBrush"/> property.
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> SelectionBrushProperty =
+        AvaloniaProperty.Register<ProTextPresenter, IBrush?>(nameof(SelectionBrush), new SolidColorBrush(Color.FromArgb(96, 0, 120, 215)));
+
+    /// <summary>
+    /// Defines the <see cref="SelectionForegroundBrush"/> property.
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> SelectionForegroundBrushProperty =
+        AvaloniaProperty.Register<ProTextPresenter, IBrush?>(nameof(SelectionForegroundBrush));
+
+    /// <summary>
+    /// Defines the <see cref="CaretBrush"/> property.
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> CaretBrushProperty =
+        AvaloniaProperty.Register<ProTextPresenter, IBrush?>(nameof(CaretBrush));
+
+    /// <summary>
+    /// Defines the <see cref="CaretBlinkInterval"/> property.
+    /// </summary>
+    public static readonly StyledProperty<TimeSpan> CaretBlinkIntervalProperty =
+        AvaloniaProperty.Register<ProTextPresenter, TimeSpan>(nameof(CaretBlinkInterval), TimeSpan.FromMilliseconds(500));
+
+    /// <summary>
+    /// Defines the <see cref="PasswordChar"/> property.
+    /// </summary>
+    public static readonly StyledProperty<char> PasswordCharProperty =
+        AvaloniaProperty.Register<ProTextPresenter, char>(nameof(PasswordChar));
+
+    /// <summary>
+    /// Defines the <see cref="RevealPassword"/> property.
+    /// </summary>
+    public static readonly StyledProperty<bool> RevealPasswordProperty =
+        AvaloniaProperty.Register<ProTextPresenter, bool>(nameof(RevealPassword));
+
+    /// <summary>
+    /// Defines the <see cref="Inlines"/> property.
+    /// </summary>
+    public static readonly DirectProperty<ProTextPresenter, InlineCollection?> InlinesProperty =
+        AvaloniaProperty.RegisterDirect<ProTextPresenter, InlineCollection?>(
+            nameof(Inlines),
+            control => control.Inlines,
+            (control, value) => control.Inlines = value);
+
+    private InlineCollection? _inlines;
+    private ProTextLayoutSnapshot? _layoutSnapshot;
+    private ProTextRichCacheKey? _localPreparedKey;
+    private ProTextPreparedContent? _localPrepared;
+    private DispatcherTimer? _caretTimer;
+    private bool _showCaret;
+    private bool _caretBlink;
+    private Rect _caretBounds;
+
+    static ProTextPresenter()
+    {
+        ClipToBoundsProperty.OverrideDefaultValue<ProTextPresenter>(true);
+
+        AffectsMeasure<ProTextPresenter>(
+            UseGlobalCacheProperty,
+            UsePretextRenderingProperty,
+            PretextLineHeightMultiplierProperty,
+            TextProperty,
+            PreeditTextProperty,
+            PreeditTextCursorPositionProperty,
+            TextAlignmentProperty,
+            TextWrappingProperty,
+            TextTrimmingProperty,
+            LineHeightProperty,
+            LineSpacingProperty,
+            LetterSpacingProperty,
+            TextDecorationsProperty,
+            FontFeaturesProperty,
+            TextElement.FontFamilyProperty,
+            TextElement.FontSizeProperty,
+            TextElement.FontStyleProperty,
+            TextElement.FontWeightProperty,
+            TextElement.FontStretchProperty,
+            TextElement.ForegroundProperty,
+            PasswordCharProperty,
+            RevealPasswordProperty,
+            InlinesProperty);
+
+        AffectsRender<ProTextPresenter>(
+            BackgroundProperty,
+            CaretBrushProperty,
+            SelectionBrushProperty,
+            SelectionForegroundBrushProperty,
+            SelectionStartProperty,
+            SelectionEndProperty,
+            ShowSelectionHighlightProperty);
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ProTextPresenter"/> class.
+    /// </summary>
+    public ProTextPresenter()
+    {
+        _inlines = new InlineCollection();
+        _inlines.Invalidated += OnInlinesInvalidated;
+    }
+
+    /// <summary>
+    /// Raised when the computed caret bounds change.
+    /// </summary>
+    public event EventHandler? CaretBoundsChanged;
+
+    /// <summary>
+    /// Gets or sets whether shared prepared-text cache entries are used.
+    /// </summary>
+    public bool UseGlobalCache
+    {
+        get => GetValue(UseGlobalCacheProperty);
+        set => SetValue(UseGlobalCacheProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether Pretext rendering is enabled.
+    /// </summary>
+    public bool UsePretextRendering
+    {
+        get => GetValue(UsePretextRenderingProperty);
+        set => SetValue(UsePretextRenderingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the fallback multiplier used when <see cref="LineHeight"/> is not explicitly set.
+    /// </summary>
+    public double PretextLineHeightMultiplier
+    {
+        get => GetValue(PretextLineHeightMultiplierProperty);
+        set => SetValue(PretextLineHeightMultiplierProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the text.
+    /// </summary>
+    [Content]
+    public string? Text
+    {
+        get => GetValue(TextProperty);
+        set => SetValue(TextProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets active IME preedit text inserted at the caret.
+    /// </summary>
+    public string? PreeditText
+    {
+        get => GetValue(PreeditTextProperty);
+        set => SetValue(PreeditTextProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the cursor position inside <see cref="PreeditText"/>.
+    /// </summary>
+    public int? PreeditTextCursorPosition
+    {
+        get => GetValue(PreeditTextCursorPositionProperty);
+        set => SetValue(PreeditTextCursorPositionProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a brush used to paint the background.
+    /// </summary>
+    public IBrush? Background
+    {
+        get => GetValue(BackgroundProperty);
+        set => SetValue(BackgroundProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the font family.
+    /// </summary>
+    public FontFamily FontFamily
+    {
+        get => TextElement.GetFontFamily(this);
+        set => TextElement.SetFontFamily(this, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the font size.
+    /// </summary>
+    public double FontSize
+    {
+        get => TextElement.GetFontSize(this);
+        set => TextElement.SetFontSize(this, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the font style.
+    /// </summary>
+    public FontStyle FontStyle
+    {
+        get => TextElement.GetFontStyle(this);
+        set => TextElement.SetFontStyle(this, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the font weight.
+    /// </summary>
+    public FontWeight FontWeight
+    {
+        get => TextElement.GetFontWeight(this);
+        set => TextElement.SetFontWeight(this, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the font stretch.
+    /// </summary>
+    public FontStretch FontStretch
+    {
+        get => TextElement.GetFontStretch(this);
+        set => TextElement.SetFontStretch(this, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the foreground brush.
+    /// </summary>
+    public IBrush? Foreground
+    {
+        get => TextElement.GetForeground(this);
+        set => TextElement.SetForeground(this, value);
+    }
+
+    /// <summary>
+    /// Gets or sets OpenType font features.
+    /// </summary>
+    public FontFeatureCollection? FontFeatures
+    {
+        get => GetValue(FontFeaturesProperty);
+        set => SetValue(FontFeaturesProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets text decorations.
+    /// </summary>
+    public TextDecorationCollection? TextDecorations
+    {
+        get => GetValue(TextDecorationsProperty);
+        set => SetValue(TextDecorationsProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets text alignment.
+    /// </summary>
+    public TextAlignment TextAlignment
+    {
+        get => GetValue(TextAlignmentProperty);
+        set => SetValue(TextAlignmentProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets text wrapping.
+    /// </summary>
+    public TextWrapping TextWrapping
+    {
+        get => GetValue(TextWrappingProperty);
+        set => SetValue(TextWrappingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets text trimming.
+    /// </summary>
+    public TextTrimming TextTrimming
+    {
+        get => GetValue(TextTrimmingProperty);
+        set => SetValue(TextTrimmingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets line height.
+    /// </summary>
+    public double LineHeight
+    {
+        get => GetValue(LineHeightProperty);
+        set => SetValue(LineHeightProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets extra line spacing.
+    /// </summary>
+    public double LineSpacing
+    {
+        get => GetValue(LineSpacingProperty);
+        set => SetValue(LineSpacingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets letter spacing.
+    /// </summary>
+    public double LetterSpacing
+    {
+        get => GetValue(LetterSpacingProperty);
+        set => SetValue(LetterSpacingProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets rich inline content. Inline content is display-oriented; caret editing APIs are intended for plain text.
+    /// </summary>
+    public InlineCollection? Inlines
+    {
+        get => _inlines;
+        set
+        {
+            if (ReferenceEquals(_inlines, value))
+            {
+                return;
+            }
+
+            if (_inlines is not null)
+            {
+                _inlines.Invalidated -= OnInlinesInvalidated;
+            }
+
+            if (value is not null)
+            {
+                value.Invalidated += OnInlinesInvalidated;
+            }
+
+            SetAndRaise(InlinesProperty, ref _inlines, value);
+            InvalidateProText();
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the caret index.
+    /// </summary>
+    public int CaretIndex
+    {
+        get => GetValue(CaretIndexProperty);
+        set => SetValue(CaretIndexProperty, Math.Max(0, value));
+    }
+
+    /// <summary>
+    /// Gets or sets the selection start index.
+    /// </summary>
+    public int SelectionStart
+    {
+        get => GetValue(SelectionStartProperty);
+        set => SetValue(SelectionStartProperty, Math.Max(0, value));
+    }
+
+    /// <summary>
+    /// Gets or sets the selection end index.
+    /// </summary>
+    public int SelectionEnd
+    {
+        get => GetValue(SelectionEndProperty);
+        set => SetValue(SelectionEndProperty, Math.Max(0, value));
+    }
+
+    /// <summary>
+    /// Gets or sets whether selection highlight is shown.
+    /// </summary>
+    public bool ShowSelectionHighlight
+    {
+        get => GetValue(ShowSelectionHighlightProperty);
+        set => SetValue(ShowSelectionHighlightProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the selection background brush.
+    /// </summary>
+    public IBrush? SelectionBrush
+    {
+        get => GetValue(SelectionBrushProperty);
+        set => SetValue(SelectionBrushProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the foreground brush used for selected text.
+    /// </summary>
+    public IBrush? SelectionForegroundBrush
+    {
+        get => GetValue(SelectionForegroundBrushProperty);
+        set => SetValue(SelectionForegroundBrushProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the caret brush.
+    /// </summary>
+    public IBrush? CaretBrush
+    {
+        get => GetValue(CaretBrushProperty);
+        set => SetValue(CaretBrushProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the caret blink interval.
+    /// </summary>
+    public TimeSpan CaretBlinkInterval
+    {
+        get => GetValue(CaretBlinkIntervalProperty);
+        set => SetValue(CaretBlinkIntervalProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the password masking character. The default value disables masking.
+    /// </summary>
+    public char PasswordChar
+    {
+        get => GetValue(PasswordCharProperty);
+        set => SetValue(PasswordCharProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether password text is revealed.
+    /// </summary>
+    public bool RevealPassword
+    {
+        get => GetValue(RevealPasswordProperty);
+        set => SetValue(RevealPasswordProperty, value);
+    }
+
+    /// <inheritdoc />
+    protected override bool BypassFlowDirectionPolicies => true;
+
+    /// <summary>
+    /// Shows the caret and starts caret blinking.
+    /// </summary>
+    public void ShowCaret()
+    {
+        _showCaret = true;
+        _caretBlink = true;
+        EnsureCaretTimer();
+        _caretTimer?.Start();
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Hides the caret and stops caret blinking.
+    /// </summary>
+    public void HideCaret()
+    {
+        _showCaret = false;
+        _caretBlink = false;
+        _caretTimer?.Stop();
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Moves the caret to a text index.
+    /// </summary>
+    public void MoveCaretToTextPosition(int textPosition)
+    {
+        SetCurrentValue(CaretIndexProperty, Math.Clamp(textPosition, 0, GetCurrentTextLength()));
+        UpdateCaretBounds();
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Moves the caret to the text position nearest a point in presenter coordinates.
+    /// </summary>
+    public void MoveCaretToPoint(Point point)
+    {
+        MoveCaretToTextPosition(GetCharacterIndex(point));
+    }
+
+    /// <summary>
+    /// Gets the text index nearest a point in presenter coordinates.
+    /// </summary>
+    public int GetCharacterIndex(Point point)
+    {
+        if (!TryCreateRichContent(out var content))
+        {
+            return 0;
+        }
+
+        var snapshot = GetLayoutSnapshot(content, Bounds.Width > 0 ? Bounds.Width : double.PositiveInfinity);
+        return GetCharacterIndex(snapshot, point);
+    }
+
+    /// <summary>
+    /// Gets caret bounds for a text index in presenter coordinates.
+    /// </summary>
+    public Rect GetCaretBounds(int textPosition)
+    {
+        if (!TryCreateRichContent(out var content))
+        {
+            return default;
+        }
+
+        var snapshot = GetLayoutSnapshot(content, Bounds.Width > 0 ? Bounds.Width : double.PositiveInfinity);
+        return GetCaretBounds(snapshot, Math.Clamp(textPosition, 0, content.Text.Length));
+    }
+
+    /// <summary>
+    /// Measures the current text using a supplied width.
+    /// </summary>
+    public Size MeasureText(double availableWidth)
+    {
+        if (!TryCreateRichContent(out var content))
+        {
+            return default;
+        }
+
+        return GetLayoutSnapshot(content, availableWidth).Size;
+    }
+
+    /// <inheritdoc />
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        if (!TryCreateRichContent(out var content))
+        {
+            return default;
+        }
+
+        var snapshot = GetLayoutSnapshot(content, availableSize.Width);
+        UpdateCaretBounds(snapshot, content);
+        return snapshot.Size;
+    }
+
+    /// <inheritdoc />
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        if (TryCreateRichContent(out var content))
+        {
+            var snapshot = GetLayoutSnapshot(content, finalSize.Width);
+            UpdateCaretBounds(snapshot, content);
+        }
+
+        return finalSize;
+    }
+
+    /// <inheritdoc />
+    public override void Render(DrawingContext context)
+    {
+        if (!TryCreateRichContent(out var content))
+        {
+            return;
+        }
+
+        var bounds = new Rect(Bounds.Size);
+
+        if (Background is { } background)
+        {
+            context.FillRectangle(background, bounds);
+        }
+
+        var snapshot = GetLayoutSnapshot(content, Bounds.Width);
+
+        if (snapshot.LineCount == 0)
+        {
+            return;
+        }
+
+        DrawSelection(context, snapshot);
+
+        using (context.PushClip(bounds))
+        {
+            context.Custom(new ProTextBlockDrawOperation(
+                bounds,
+                bounds,
+                snapshot,
+                TextAlignment,
+                FlowDirection));
+        }
+
+        DrawCaret(context, snapshot, content);
+    }
+
+    /// <inheritdoc />
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == CaretBlinkIntervalProperty)
+        {
+            ResetCaretTimer();
+        }
+
+        if (change.Property == CaretIndexProperty)
+        {
+            UpdateCaretBounds();
+        }
+
+        InvalidateProText();
+    }
+
+    /// <inheritdoc />
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        _caretTimer?.Stop();
+    }
+
+    private void OnInlinesInvalidated(object? sender, EventArgs e)
+    {
+        InvalidateProText();
+    }
+
+    private void InvalidateProText()
+    {
+        _layoutSnapshot = null;
+        InvalidateMeasure();
+        InvalidateVisual();
+    }
+
+    private bool TryCreateRichContent(out ProTextRichContent content)
+    {
+        content = null!;
+
+        if (!UsePretextRendering)
+        {
+            return false;
+        }
+
+        var baseStyle = CreateBaseStyle(Foreground, TextDecorations);
+
+        if (Inlines is { Count: > 0 })
+        {
+            return ProTextInlineBuilder.TryCreateInlineContent(Inlines, baseStyle, out content);
+        }
+
+        content = CreateTextContent(baseStyle);
+        return true;
+    }
+
+    private ProTextRichContent CreateTextContent(ProTextRichStyle baseStyle)
+    {
+        var text = Text ?? string.Empty;
+        var caretIndex = Math.Clamp(CaretIndex, 0, text.Length);
+        var preeditText = PreeditText;
+
+        if (PasswordChar != default && !RevealPassword)
+        {
+            text = new string(PasswordChar, text.Length);
+        }
+
+        var builder = new ProTextRichContentBuilder(baseStyle);
+
+        if (!string.IsNullOrEmpty(preeditText))
+        {
+            var preeditStyle = CreateBaseStyle(Foreground, Avalonia.Media.TextDecorations.Underline);
+            builder.AppendText(text[..caretIndex], baseStyle);
+            builder.AppendText(preeditText, preeditStyle);
+            builder.AppendText(text[caretIndex..], baseStyle);
+            return builder.Build();
+        }
+
+        var selectionForeground = ShowSelectionHighlight && SelectionStart != SelectionEnd ? SelectionForegroundBrush : null;
+
+        if (selectionForeground is null)
+        {
+            builder.AppendText(text, baseStyle);
+            return builder.Build();
+        }
+
+        var start = Math.Clamp(Math.Min(SelectionStart, SelectionEnd), 0, text.Length);
+        var end = Math.Clamp(Math.Max(SelectionStart, SelectionEnd), 0, text.Length);
+        var selectionStyle = CreateBaseStyle(selectionForeground, TextDecorations);
+        builder.AppendText(text[..start], baseStyle);
+        builder.AppendText(text[start..end], selectionStyle);
+        builder.AppendText(text[end..], baseStyle);
+        return builder.Build();
+    }
+
+    private ProTextRichStyle CreateBaseStyle(IBrush? foreground, TextDecorationCollection? textDecorations)
+    {
+        return ProTextInlineBuilder.CreateStyle(
+            FontFamily,
+            FontSize,
+            FontStyle,
+            FontWeight,
+            FontStretch,
+            foreground,
+            textDecorations,
+            FontFeatures,
+            LetterSpacing);
+    }
+
+    private ProTextLayoutSnapshot GetLayoutSnapshot(ProTextRichContent content, double availableWidth)
+    {
+        var maxWidth = ResolveMaxWidth(availableWidth);
+        var lineHeight = GetEffectiveLineHeight(content);
+        var textWrapping = TextWrapping;
+        var textTrimming = TextTrimming;
+
+        if (_layoutSnapshot is { } snapshot && snapshot.Matches(content, maxWidth, lineHeight, maxLines: 0, textWrapping, textTrimming))
+        {
+            return snapshot;
+        }
+
+        var prepared = GetPreparedContent(content);
+
+        snapshot = new ProTextLayoutSnapshot(
+            content,
+            prepared,
+            maxWidth,
+            lineHeight,
+            maxLines: 0,
+            textWrapping,
+            textTrimming);
+
+        _layoutSnapshot = snapshot;
+        return snapshot;
+    }
+
+    private ProTextPreparedContent GetPreparedContent(ProTextRichContent content)
+    {
+        var key = new ProTextRichCacheKey(content.LayoutFingerprint);
+
+        if (!UseGlobalCache && _localPrepared is not null && _localPreparedKey == key)
+        {
+            return _localPrepared;
+        }
+
+        var preparedParagraphs = new PreparedRichInline[content.Paragraphs.Count];
+
+        for (var i = 0; i < content.Paragraphs.Count; i++)
+        {
+            var paragraph = content.Paragraphs[i];
+            var items = paragraph.CreateInlineItems();
+
+            preparedParagraphs[i] = UseGlobalCache
+                ? ProTextBlockCache.GetOrPrepareRich(new ProTextRichCacheKey(paragraph.LayoutFingerprint), items)
+                : ProTextBlockCache.PrepareRichUncached(items);
+        }
+
+        var prepared = new ProTextPreparedContent(preparedParagraphs);
+
+        if (!UseGlobalCache)
+        {
+            _localPreparedKey = key;
+            _localPrepared = prepared;
+        }
+
+        return prepared;
+    }
+
+    private double ResolveMaxWidth(double availableWidth)
+    {
+        if ((TextWrapping == TextWrapping.NoWrap && ReferenceEquals(TextTrimming, TextTrimming.None)) || double.IsInfinity(availableWidth))
+        {
+            return double.PositiveInfinity;
+        }
+
+        if (double.IsNaN(availableWidth))
+        {
+            return 0;
+        }
+
+        return Math.Max(0, availableWidth);
+    }
+
+    private double GetEffectiveLineHeight(ProTextRichContent content)
+    {
+        var fontSize = Math.Max(FontSize, content.MaxFontSize);
+        var baseLineHeight = double.IsNaN(LineHeight) ? fontSize * PretextLineHeightMultiplier : LineHeight;
+        return Math.Max(0, baseLineHeight + LineSpacing);
+    }
+
+    private int GetCurrentTextLength()
+    {
+        if (!TryCreateRichContent(out var content))
+        {
+            return 0;
+        }
+
+        return content.Text.Length;
+    }
+
+    private void UpdateCaretBounds()
+    {
+        if (!TryCreateRichContent(out var content))
+        {
+            return;
+        }
+
+        var snapshot = GetLayoutSnapshot(content, Bounds.Width > 0 ? Bounds.Width : double.PositiveInfinity);
+        UpdateCaretBounds(snapshot, content);
+    }
+
+    private void UpdateCaretBounds(ProTextLayoutSnapshot snapshot, ProTextRichContent content)
+    {
+        var bounds = GetCaretBounds(snapshot, Math.Clamp(GetEffectiveCaretIndex(), 0, content.Text.Length));
+
+        if (bounds != _caretBounds)
+        {
+            _caretBounds = bounds;
+            CaretBoundsChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private void DrawSelection(DrawingContext context, ProTextLayoutSnapshot snapshot)
+    {
+        if (!ShowSelectionHighlight || SelectionStart == SelectionEnd || SelectionBrush is null)
+        {
+            return;
+        }
+
+        var start = Math.Min(SelectionStart, SelectionEnd);
+        var end = Math.Max(SelectionStart, SelectionEnd);
+
+        foreach (var rect in GetSelectionRects(snapshot, start, end))
+        {
+            context.FillRectangle(SelectionBrush, rect);
+        }
+    }
+
+    private void DrawCaret(DrawingContext context, ProTextLayoutSnapshot snapshot, ProTextRichContent content)
+    {
+        if (!_showCaret || !_caretBlink || SelectionStart != SelectionEnd)
+        {
+            return;
+        }
+
+        var bounds = GetCaretBounds(snapshot, Math.Clamp(GetEffectiveCaretIndex(), 0, content.Text.Length));
+        var brush = CaretBrush ?? Foreground ?? Brushes.Black;
+        var x = Math.Floor(bounds.X) + 0.5;
+        context.DrawLine(new Pen(brush, 1), new Point(x, bounds.Top), new Point(x, bounds.Bottom));
+    }
+
+    private int GetEffectiveCaretIndex()
+    {
+        var text = Text ?? string.Empty;
+        var caretIndex = Math.Clamp(CaretIndex, 0, text.Length);
+        var preeditText = PreeditText;
+
+        if (string.IsNullOrEmpty(preeditText))
+        {
+            return caretIndex;
+        }
+
+        var cursorPosition = PreeditTextCursorPosition is >= 0
+            ? Math.Min(PreeditTextCursorPosition.Value, preeditText.Length)
+            : preeditText.Length;
+
+        return caretIndex + cursorPosition;
+    }
+
+    private IEnumerable<Rect> GetSelectionRects(ProTextLayoutSnapshot snapshot, int selectionStart, int selectionEnd)
+    {
+        for (var lineIndex = 0; lineIndex < snapshot.Lines.Count; lineIndex++)
+        {
+            var line = snapshot.Lines[lineIndex];
+
+            if (line.Fragments.Count == 0 || selectionEnd <= line.StartTextIndex || selectionStart >= line.EndTextIndex)
+            {
+                continue;
+            }
+
+            var start = Math.Max(selectionStart, line.StartTextIndex);
+            var end = Math.Min(selectionEnd, line.EndTextIndex);
+            var x1 = GetXForTextIndex(snapshot, line, start);
+            var x2 = GetXForTextIndex(snapshot, line, end);
+
+            if (x2 < x1)
+            {
+                (x1, x2) = (x2, x1);
+            }
+
+            yield return new Rect(x1, lineIndex * snapshot.LineHeight, Math.Max(1, x2 - x1), snapshot.LineHeight);
+        }
+    }
+
+    private int GetCharacterIndex(ProTextLayoutSnapshot snapshot, Point point)
+    {
+        if (snapshot.Lines.Count == 0)
+        {
+            return 0;
+        }
+
+        var lineIndex = Math.Clamp((int)Math.Floor(point.Y / Math.Max(1, snapshot.LineHeight)), 0, snapshot.Lines.Count - 1);
+        var line = snapshot.Lines[lineIndex];
+
+        if (line.Fragments.Count == 0)
+        {
+            return line.StartTextIndex;
+        }
+
+        var lineX = GetAlignedX(snapshot, line);
+
+        if (point.X <= lineX)
+        {
+            return line.StartTextIndex;
+        }
+
+        foreach (var fragment in line.Fragments)
+        {
+            var fragmentX = lineX + fragment.X;
+
+            if (point.X > fragmentX + fragment.Width)
+            {
+                continue;
+            }
+
+            return GetCharacterIndexInFragment(fragment, point.X - fragmentX);
+        }
+
+        return line.EndTextIndex;
+    }
+
+    private static int GetCharacterIndexInFragment(ProTextLayoutFragment fragment, double x)
+    {
+        var currentX = 0d;
+        var lastIndex = fragment.TextStart;
+
+        foreach (var grapheme in ProTextFontResolver.EnumerateGraphemes(fragment.Text))
+        {
+            var width = ProTextBlockTextMeasurerFactory.MeasureText(grapheme, fragment.Style.FontDescriptor) + fragment.Style.LetterSpacing;
+            var nextIndex = lastIndex + grapheme.Length;
+
+            if (x <= currentX + width / 2)
+            {
+                return lastIndex;
+            }
+
+            currentX += width;
+            lastIndex = nextIndex;
+        }
+
+        return fragment.TextEnd;
+    }
+
+    private Rect GetCaretBounds(ProTextLayoutSnapshot snapshot, int textPosition)
+    {
+        if (snapshot.Lines.Count == 0)
+        {
+            return new Rect(0, 0, 0, snapshot.LineHeight);
+        }
+
+        for (var lineIndex = 0; lineIndex < snapshot.Lines.Count; lineIndex++)
+        {
+            var line = snapshot.Lines[lineIndex];
+
+            if (textPosition < line.StartTextIndex || textPosition > line.EndTextIndex)
+            {
+                continue;
+            }
+
+            return new Rect(GetXForTextIndex(snapshot, line, textPosition), lineIndex * snapshot.LineHeight, 0, snapshot.LineHeight);
+        }
+
+        var lastLine = snapshot.Lines[^1];
+        return new Rect(GetXForTextIndex(snapshot, lastLine, lastLine.EndTextIndex), (snapshot.Lines.Count - 1) * snapshot.LineHeight, 0, snapshot.LineHeight);
+    }
+
+    private double GetXForTextIndex(ProTextLayoutSnapshot snapshot, ProTextLayoutLine line, int textPosition)
+    {
+        var x = GetAlignedX(snapshot, line);
+
+        foreach (var fragment in line.Fragments)
+        {
+            if (textPosition <= fragment.TextStart)
+            {
+                return x + fragment.X;
+            }
+
+            if (textPosition <= fragment.TextEnd)
+            {
+                var localLength = Math.Clamp(textPosition - fragment.TextStart, 0, fragment.Text.Length);
+                var prefix = fragment.Text[..localLength];
+                return x + fragment.X + ProTextBlockTextMeasurerFactory.MeasureText(prefix, fragment.Style.FontDescriptor);
+            }
+        }
+
+        return x + line.Width;
+    }
+
+    private double GetAlignedX(ProTextLayoutSnapshot snapshot, ProTextLayoutLine line)
+    {
+        var extra = Math.Max(0, Bounds.Width - line.Width);
+
+        return ResolveAlignment() switch
+        {
+            ResolvedTextAlignment.Center => extra / 2,
+            ResolvedTextAlignment.Right => extra,
+            _ => 0,
+        };
+    }
+
+    private ResolvedTextAlignment ResolveAlignment()
+    {
+        return TextAlignment switch
+        {
+            TextAlignment.Center => ResolvedTextAlignment.Center,
+            TextAlignment.Right => ResolvedTextAlignment.Right,
+            TextAlignment.End when FlowDirection == FlowDirection.LeftToRight => ResolvedTextAlignment.Right,
+            TextAlignment.End => ResolvedTextAlignment.Left,
+            TextAlignment.Start when FlowDirection == FlowDirection.RightToLeft => ResolvedTextAlignment.Right,
+            TextAlignment.DetectFromContent when FlowDirection == FlowDirection.RightToLeft => ResolvedTextAlignment.Right,
+            _ => ResolvedTextAlignment.Left,
+        };
+    }
+
+    private void EnsureCaretTimer()
+    {
+        if (_caretTimer is null)
+        {
+            ResetCaretTimer();
+        }
+    }
+
+    private void ResetCaretTimer()
+    {
+        var wasEnabled = _caretTimer?.IsEnabled == true;
+
+        if (_caretTimer is not null)
+        {
+            _caretTimer.Tick -= CaretTimerTick;
+            _caretTimer.Stop();
+        }
+
+        _caretTimer = null;
+
+        if (CaretBlinkInterval.TotalMilliseconds <= 0)
+        {
+            return;
+        }
+
+        _caretTimer = new DispatcherTimer { Interval = CaretBlinkInterval };
+        _caretTimer.Tick += CaretTimerTick;
+
+        if (wasEnabled)
+        {
+            _caretTimer.Start();
+        }
+    }
+
+    private void CaretTimerTick(object? sender, EventArgs e)
+    {
+        _caretBlink = !_caretBlink;
+        InvalidateVisual();
+    }
+
+    private enum ResolvedTextAlignment
+    {
+        Left,
+        Center,
+        Right,
+    }
+}
