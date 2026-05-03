@@ -3,6 +3,7 @@
     <Project Path="benchmarks/ProTextBlock.Benchmarks/ProTextBlock.Benchmarks.csproj" />
     <Project Path="benchmarks/ProTextBlock.InlineBenchmarks/ProTextBlock.InlineBenchmarks.csproj" />
     <Project Path="benchmarks/ProTextBlock.PresenterBenchmarks/ProTextBlock.PresenterBenchmarks.csproj" />
+    <Project Path="benchmarks/ProTextBlock.TextBoxBenchmarks/ProTextBlock.TextBoxBenchmarks.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/ProTextBlock.Sample/ProTextBlock.Sample.csproj" />
