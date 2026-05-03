@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 using ProTextBlockCacheApi = ProTextBlock.ProTextBlockCache;
 using ProTextBlockControl = ProTextBlock.ProTextBlock;
@@ -11,6 +13,19 @@ namespace ProTextBlock.Sample;
 
 public partial class MainWindow : Window
 {
+    private const int TextBoxSurfaceItemCount = 1000;
+    private const int TextBoxSurfaceColumns = 4;
+    private const double TextBoxSurfacePadding = 20;
+    private const double TextBoxSurfaceItemWidth = 360;
+    private const double TextBoxSurfaceItemHeight = 52;
+    private const double TextBoxSurfaceColumnGap = 16;
+    private const double TextBoxSurfaceRowGap = 12;
+
+    private readonly List<TextBox> _avaloniaTextBoxes = [];
+    private readonly List<ProTextBoxControl> _proTextBoxes = [];
+    private ScrollViewer? _panningScrollViewer;
+    private Point _panStartPoint;
+    private Vector _panStartOffset;
     private readonly IReadOnlyList<CorpusItem> _corpora =
     [
         new("Short labels", "Frame time, cache hits, visible rows, selected segment, Pretext path, measured width, logical line count."),
@@ -35,8 +50,30 @@ public partial class MainWindow : Window
             UpdateCacheStatus();
         };
 
+        AvaloniaTextBoxZoomSlider.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == Slider.ValueProperty)
+            {
+                ApplyTextBoxSurfaceZoom(AvaloniaTextBoxZoomSlider, AvaloniaTextBoxZoomSurface, AvaloniaTextBoxCanvas, AvaloniaTextBoxZoomText);
+            }
+        };
+        ProTextBoxZoomSlider.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == Slider.ValueProperty)
+            {
+                ApplyTextBoxSurfaceZoom(ProTextBoxZoomSlider, ProTextBoxZoomSurface, ProTextBoxCanvas, ProTextBoxZoomText);
+            }
+        };
+        AvaloniaTextBoxResetButton.Click += (_, _) => ResetTextBoxSurface(AvaloniaTextBoxZoomSlider, AvaloniaTextBoxPanScrollViewer);
+        ProTextBoxResetButton.Click += (_, _) => ResetTextBoxSurface(ProTextBoxZoomSlider, ProTextBoxPanScrollViewer);
+        AttachPanZoomSurface(AvaloniaTextBoxPanScrollViewer, AvaloniaTextBoxZoomSlider);
+        AttachPanZoomSurface(ProTextBoxPanScrollViewer, ProTextBoxZoomSlider);
+
         CorpusBox.SelectedIndex = 1;
         RebuildDenseGrid();
+        RebuildTextBoxSurfaces();
+        ApplyTextBoxSurfaceZoom(AvaloniaTextBoxZoomSlider, AvaloniaTextBoxZoomSurface, AvaloniaTextBoxCanvas, AvaloniaTextBoxZoomText);
+        ApplyTextBoxSurfaceZoom(ProTextBoxZoomSlider, ProTextBoxZoomSurface, ProTextBoxCanvas, ProTextBoxZoomText);
         UpdateContent();
         PresenterDemo.ShowCaret();
     }
@@ -69,6 +106,7 @@ public partial class MainWindow : Window
         ApplyPresenterText(PresenterDemo, fontSize, wrapping, useGlobalCache);
         ApplyPresenterText(PresenterInlineDemo, fontSize, wrapping, useGlobalCache);
         ApplyEditableText(corpus.Text, fontSize, wrapping, useGlobalCache);
+        ApplyTextBoxSurfaceSettings(fontSize, wrapping, useGlobalCache);
 
         foreach (var child in AvaloniaDenseGrid.Children)
         {
@@ -118,6 +156,173 @@ public partial class MainWindow : Window
                 MaxLines = 2
             });
         }
+    }
+
+    private void RebuildTextBoxSurfaces()
+    {
+        _avaloniaTextBoxes.Clear();
+        _proTextBoxes.Clear();
+        AvaloniaTextBoxCanvas.Children.Clear();
+        ProTextBoxCanvas.Children.Clear();
+
+        var rows = (int)Math.Ceiling(TextBoxSurfaceItemCount / (double)TextBoxSurfaceColumns);
+        var surfaceWidth = TextBoxSurfacePadding * 2 + TextBoxSurfaceColumns * TextBoxSurfaceItemWidth + (TextBoxSurfaceColumns - 1) * TextBoxSurfaceColumnGap;
+        var surfaceHeight = TextBoxSurfacePadding * 2 + rows * TextBoxSurfaceItemHeight + (rows - 1) * TextBoxSurfaceRowGap;
+
+        AvaloniaTextBoxCanvas.Width = surfaceWidth;
+        AvaloniaTextBoxCanvas.Height = surfaceHeight;
+        ProTextBoxCanvas.Width = surfaceWidth;
+        ProTextBoxCanvas.Height = surfaceHeight;
+
+        for (var i = 0; i < TextBoxSurfaceItemCount; i++)
+        {
+            var column = i % TextBoxSurfaceColumns;
+            var row = i / TextBoxSurfaceColumns;
+            var x = TextBoxSurfacePadding + column * (TextBoxSurfaceItemWidth + TextBoxSurfaceColumnGap);
+            var y = TextBoxSurfacePadding + row * (TextBoxSurfaceItemHeight + TextBoxSurfaceRowGap);
+            var text = TextBoxSurfaceText(i);
+
+            var avaloniaTextBox = new TextBox
+            {
+                Text = text,
+                Width = TextBoxSurfaceItemWidth,
+                Height = TextBoxSurfaceItemHeight,
+                FontSize = 14,
+                LineHeight = 20,
+                TextWrapping = TextWrapping.Wrap,
+                SelectionBrush = new SolidColorBrush(Color.FromArgb(96, 59, 130, 246)),
+                SelectionForegroundBrush = Brushes.White,
+                CaretBrush = Brushes.Black
+            };
+            Canvas.SetLeft(avaloniaTextBox, x);
+            Canvas.SetTop(avaloniaTextBox, y);
+            AvaloniaTextBoxCanvas.Children.Add(avaloniaTextBox);
+            _avaloniaTextBoxes.Add(avaloniaTextBox);
+
+            var proTextBox = new ProTextBoxControl
+            {
+                Text = text,
+                Width = TextBoxSurfaceItemWidth,
+                Height = TextBoxSurfaceItemHeight,
+                FontSize = 14,
+                LineHeight = 20,
+                TextWrapping = TextWrapping.Wrap,
+                SelectionBrush = new SolidColorBrush(Color.FromArgb(96, 59, 130, 246)),
+                SelectionForegroundBrush = Brushes.White,
+                CaretBrush = Brushes.Black,
+                UseGlobalCache = true
+            };
+            Canvas.SetLeft(proTextBox, x);
+            Canvas.SetTop(proTextBox, y);
+            ProTextBoxCanvas.Children.Add(proTextBox);
+            _proTextBoxes.Add(proTextBox);
+        }
+    }
+
+    private void ApplyTextBoxSurfaceSettings(double fontSize, TextWrapping wrapping, bool useGlobalCache)
+    {
+        var surfaceFontSize = Math.Max(11, fontSize - 2);
+        var lineHeight = Math.Round(surfaceFontSize * 1.35);
+
+        foreach (var textBox in _avaloniaTextBoxes)
+        {
+            textBox.FontSize = surfaceFontSize;
+            textBox.LineHeight = lineHeight;
+            textBox.TextWrapping = wrapping;
+        }
+
+        foreach (var textBox in _proTextBoxes)
+        {
+            textBox.FontSize = surfaceFontSize;
+            textBox.LineHeight = lineHeight;
+            textBox.TextWrapping = wrapping;
+            textBox.UseGlobalCache = useGlobalCache;
+        }
+    }
+
+    private static void ApplyTextBoxSurfaceZoom(Slider slider, Canvas zoomSurface, Canvas contentCanvas, TextBlock zoomText)
+    {
+        var zoom = Math.Clamp(slider.Value, slider.Minimum, slider.Maximum);
+        zoomSurface.Width = contentCanvas.Width * zoom;
+        zoomSurface.Height = contentCanvas.Height * zoom;
+        contentCanvas.RenderTransform = new ScaleTransform(zoom, zoom);
+        zoomText.Text = $"{zoom * 100:0}%";
+    }
+
+    private static void ResetTextBoxSurface(Slider slider, ScrollViewer scrollViewer)
+    {
+        slider.Value = 1;
+        scrollViewer.Offset = default;
+    }
+
+    private static void ZoomTextBoxSurface(PointerWheelEventArgs e, Slider slider)
+    {
+        if ((e.KeyModifiers & KeyModifiers.Control) == 0)
+        {
+            return;
+        }
+
+        var step = e.Delta.Y > 0 ? 0.1 : -0.1;
+        slider.Value = Math.Clamp(slider.Value + step, slider.Minimum, slider.Maximum);
+        e.Handled = true;
+    }
+
+    private void AttachPanZoomSurface(ScrollViewer scrollViewer, Slider slider)
+    {
+        scrollViewer.PointerWheelChanged += (_, e) => ZoomTextBoxSurface(e, slider);
+        scrollViewer.PointerPressed += (_, e) => StartTextBoxSurfacePan(e, scrollViewer);
+        scrollViewer.PointerMoved += (_, e) => MoveTextBoxSurfacePan(e, scrollViewer);
+        scrollViewer.PointerReleased += (_, e) => StopTextBoxSurfacePan(e, scrollViewer);
+        scrollViewer.PointerCaptureLost += (_, _) =>
+        {
+            if (ReferenceEquals(_panningScrollViewer, scrollViewer))
+            {
+                _panningScrollViewer = null;
+            }
+        };
+    }
+
+    private void StartTextBoxSurfacePan(PointerPressedEventArgs e, ScrollViewer scrollViewer)
+    {
+        var point = e.GetCurrentPoint(scrollViewer);
+
+        if (!point.Properties.IsMiddleButtonPressed && !point.Properties.IsRightButtonPressed)
+        {
+            return;
+        }
+
+        _panningScrollViewer = scrollViewer;
+        _panStartPoint = point.Position;
+        _panStartOffset = scrollViewer.Offset;
+        e.Pointer.Capture(scrollViewer);
+        e.Handled = true;
+    }
+
+    private void MoveTextBoxSurfacePan(PointerEventArgs e, ScrollViewer scrollViewer)
+    {
+        if (!ReferenceEquals(_panningScrollViewer, scrollViewer))
+        {
+            return;
+        }
+
+        var position = e.GetPosition(scrollViewer);
+        var delta = position - _panStartPoint;
+        scrollViewer.Offset = new Vector(
+            Math.Max(0, _panStartOffset.X - delta.X),
+            Math.Max(0, _panStartOffset.Y - delta.Y));
+        e.Handled = true;
+    }
+
+    private void StopTextBoxSurfacePan(PointerReleasedEventArgs e, ScrollViewer scrollViewer)
+    {
+        if (!ReferenceEquals(_panningScrollViewer, scrollViewer))
+        {
+            return;
+        }
+
+        _panningScrollViewer = null;
+        e.Pointer.Capture(null);
+        e.Handled = true;
     }
 
     private static void ApplyDenseText(TextBlock textBlock, double fontSize, TextWrapping wrapping)
@@ -190,6 +395,11 @@ public partial class MainWindow : Window
             4 => "simple text uses the Pretext layout path",
             _ => "rich inline content stays on the Pretext path"
         };
+    }
+
+    private static string TextBoxSurfaceText(int index)
+    {
+        return $"Box {index + 1:0000}: {DenseText(index)} across a zoomable editable surface.";
     }
 
     private sealed record CorpusItem(string Name, string Text)

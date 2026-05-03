@@ -54,8 +54,10 @@
                 </StackPanel>
             </Border>
 
-            <ScrollViewer Grid.Column="1">
-                <StackPanel Margin="24" Spacing="18">
+            <TabControl Grid.Column="1" Margin="24">
+                <TabItem Header="Comparison">
+                    <ScrollViewer>
+                        <StackPanel Spacing="18">
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
                         <Border Classes="panel" Padding="18">
                             <StackPanel Spacing="12">
@@ -208,8 +210,82 @@
                             </Grid>
                         </StackPanel>
                     </Border>
-                </StackPanel>
-            </ScrollViewer>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <TabItem Header="1000 Avalonia TextBoxes">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="12">
+                        <Border Classes="panel" Padding="12">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+                                <TextBlock Classes="sectionTitle" Text="Avalonia TextBox Surface" VerticalAlignment="Center" />
+                                <Slider x:Name="AvaloniaTextBoxZoomSlider"
+                                        Grid.Column="1"
+                                        Minimum="0.35"
+                                        Maximum="2.5"
+                                        Value="1"
+                                        TickFrequency="0.05" />
+                                <TextBlock x:Name="AvaloniaTextBoxZoomText"
+                                           Grid.Column="2"
+                                           Width="48"
+                                           Classes="caption"
+                                           TextAlignment="Right"
+                                           VerticalAlignment="Center" />
+                                <Button x:Name="AvaloniaTextBoxResetButton"
+                                        Grid.Column="3"
+                                        Content="Reset" />
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Row="1" Classes="panel" ClipToBounds="True">
+                            <ScrollViewer x:Name="AvaloniaTextBoxPanScrollViewer"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Auto">
+                                <Canvas x:Name="AvaloniaTextBoxZoomSurface"
+                                        Background="#F5F7FA">
+                                    <Canvas x:Name="AvaloniaTextBoxCanvas" />
+                                </Canvas>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <TabItem Header="1000 ProTextBoxes">
+                    <Grid RowDefinitions="Auto,*" RowSpacing="12">
+                        <Border Classes="panel" Padding="12">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+                                <TextBlock Classes="sectionTitle" Text="ProTextBox Surface" VerticalAlignment="Center" />
+                                <Slider x:Name="ProTextBoxZoomSlider"
+                                        Grid.Column="1"
+                                        Minimum="0.35"
+                                        Maximum="2.5"
+                                        Value="1"
+                                        TickFrequency="0.05" />
+                                <TextBlock x:Name="ProTextBoxZoomText"
+                                           Grid.Column="2"
+                                           Width="48"
+                                           Classes="caption"
+                                           TextAlignment="Right"
+                                           VerticalAlignment="Center" />
+                                <Button x:Name="ProTextBoxResetButton"
+                                        Grid.Column="3"
+                                        Content="Reset" />
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Row="1" Classes="panel" ClipToBounds="True">
+                            <ScrollViewer x:Name="ProTextBoxPanScrollViewer"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Auto">
+                                <Canvas x:Name="ProTextBoxZoomSurface"
+                                        Background="#F5F7FA">
+                                    <Canvas x:Name="ProTextBoxCanvas" />
+                                </Canvas>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </TabItem>
+            </TabControl>
         </Grid>
     </Grid>
 </Window>
