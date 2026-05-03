@@ -63,6 +63,42 @@ public class ProTextPresenter : Control
         Border.BackgroundProperty.AddOwner<ProTextPresenter>();
 
     /// <summary>
+    /// Defines the <see cref="FontFamily"/> property.
+    /// </summary>
+    public static readonly StyledProperty<FontFamily> FontFamilyProperty =
+        TextElement.FontFamilyProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="FontSize"/> property.
+    /// </summary>
+    public static readonly StyledProperty<double> FontSizeProperty =
+        TextElement.FontSizeProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="FontStyle"/> property.
+    /// </summary>
+    public static readonly StyledProperty<FontStyle> FontStyleProperty =
+        TextElement.FontStyleProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="FontWeight"/> property.
+    /// </summary>
+    public static readonly StyledProperty<FontWeight> FontWeightProperty =
+        TextElement.FontWeightProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="FontStretch"/> property.
+    /// </summary>
+    public static readonly StyledProperty<FontStretch> FontStretchProperty =
+        TextElement.FontStretchProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
+    /// Defines the <see cref="Foreground"/> property.
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> ForegroundProperty =
+        TextElement.ForegroundProperty.AddOwner<ProTextPresenter>();
+
+    /// <summary>
     /// Defines the <see cref="TextAlignment"/> property.
     /// </summary>
     public static readonly StyledProperty<TextAlignment> TextAlignmentProperty =
@@ -207,12 +243,12 @@ public class ProTextPresenter : Control
             LetterSpacingProperty,
             TextDecorationsProperty,
             FontFeaturesProperty,
-            TextElement.FontFamilyProperty,
-            TextElement.FontSizeProperty,
-            TextElement.FontStyleProperty,
-            TextElement.FontWeightProperty,
-            TextElement.FontStretchProperty,
-            TextElement.ForegroundProperty,
+            FontFamilyProperty,
+            FontSizeProperty,
+            FontStyleProperty,
+            FontWeightProperty,
+            FontStretchProperty,
+            ForegroundProperty,
             PasswordCharProperty,
             RevealPasswordProperty,
             InlinesProperty);
@@ -310,8 +346,8 @@ public class ProTextPresenter : Control
     /// </summary>
     public FontFamily FontFamily
     {
-        get => TextElement.GetFontFamily(this);
-        set => TextElement.SetFontFamily(this, value);
+        get => GetValue(FontFamilyProperty);
+        set => SetValue(FontFamilyProperty, value);
     }
 
     /// <summary>
@@ -319,8 +355,8 @@ public class ProTextPresenter : Control
     /// </summary>
     public double FontSize
     {
-        get => TextElement.GetFontSize(this);
-        set => TextElement.SetFontSize(this, value);
+        get => GetValue(FontSizeProperty);
+        set => SetValue(FontSizeProperty, value);
     }
 
     /// <summary>
@@ -328,8 +364,8 @@ public class ProTextPresenter : Control
     /// </summary>
     public FontStyle FontStyle
     {
-        get => TextElement.GetFontStyle(this);
-        set => TextElement.SetFontStyle(this, value);
+        get => GetValue(FontStyleProperty);
+        set => SetValue(FontStyleProperty, value);
     }
 
     /// <summary>
@@ -337,8 +373,8 @@ public class ProTextPresenter : Control
     /// </summary>
     public FontWeight FontWeight
     {
-        get => TextElement.GetFontWeight(this);
-        set => TextElement.SetFontWeight(this, value);
+        get => GetValue(FontWeightProperty);
+        set => SetValue(FontWeightProperty, value);
     }
 
     /// <summary>
@@ -346,8 +382,8 @@ public class ProTextPresenter : Control
     /// </summary>
     public FontStretch FontStretch
     {
-        get => TextElement.GetFontStretch(this);
-        set => TextElement.SetFontStretch(this, value);
+        get => GetValue(FontStretchProperty);
+        set => SetValue(FontStretchProperty, value);
     }
 
     /// <summary>
@@ -355,8 +391,8 @@ public class ProTextPresenter : Control
     /// </summary>
     public IBrush? Foreground
     {
-        get => TextElement.GetForeground(this);
-        set => TextElement.SetForeground(this, value);
+        get => GetValue(ForegroundProperty);
+        set => SetValue(ForegroundProperty, value);
     }
 
     /// <summary>
