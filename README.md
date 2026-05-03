@@ -102,15 +102,15 @@ Environment: Apple M3 Pro, .NET `10.0.5`, BenchmarkDotNet `0.15.8`, ShortRun job
 
 | Scenario | Avalonia TextBox | ProTextBox | Result |
 | --- | ---: | ---: | ---: |
-| Measure, width 220 | 1.323 ms, 285.7 KB | 47.92 us, 174.84 KB | 27.6x faster, 39% less memory |
-| Measure, width 440 | 1.293 ms, 215.05 KB | 38.75 us, 121.86 KB | 33.4x faster, 43% less memory |
-| Measure, width 880 | 1.205 ms, 185.08 KB | 34.09 us, 99.11 KB | 35.4x faster, 46% less memory |
-| Selected measure, width 220 | 1.322 ms, 285.7 KB | 48.33 us, 174.84 KB | 27.4x faster, 39% less memory |
-| Selected measure, width 440 | 1.248 ms, 215.05 KB | 38.37 us, 121.86 KB | 32.5x faster, 43% less memory |
-| Selected measure, width 880 | 1.195 ms, 185.08 KB | 34.57 us, 99.11 KB | 34.6x faster, 46% less memory |
-| Headless frame capture | 398.9 us, 10.24 KB | 413.8 us, 8.21 KB | near parity, 20% less memory |
+| Measure, width 220 | 1.368 ms, 285.7 KB | 52.95 us, 174.84 KB | 25.8x faster, 39% less memory |
+| Measure, width 440 | 1.282 ms, 215.05 KB | 40.25 us, 121.86 KB | 31.9x faster, 43% less memory |
+| Measure, width 880 | 1.550 ms, 185.08 KB | 48.19 us, 99.11 KB | 32.2x faster, 46% less memory |
+| Selected measure, width 220 | 1.353 ms, 285.7 KB | 51.15 us, 174.84 KB | 26.4x faster, 39% less memory |
+| Selected measure, width 440 | 1.337 ms, 215.05 KB | 55.83 us, 121.86 KB | 24.0x faster, 43% less memory |
+| Selected measure, width 880 | 1.666 ms, 185.08 KB | 50.13 us, 99.11 KB | 33.2x faster, 46% less memory |
+| Headless frame capture | 532.1 us, 9.41 KB | 492.3 us, 6.65 KB | 8% faster, 29% less memory |
 
-The main optimization achieved for `ProTextBox` is faster, lower-allocation measurement on the ProText path while keeping the Fluent template hosted by `ProTextPresenter`. Stable presenter content, prepared-content reuse, and a small width-local layout cache keep selected measurement aligned with normal measurement. The render path now reuses cached Skia render fonts and records stable text drawing into a per-layout Skia picture, cutting invalidated-frame allocation from about 13.76 MB to 8.21 KB and moving frame time to near parity with Avalonia `TextBox`.
+The main optimization achieved for `ProTextBox` is faster, lower-allocation measurement on the ProText path while keeping the Fluent template hosted by `ProTextPresenter`. Stable presenter content, prepared-content reuse, and a small width-local layout cache keep selected measurement aligned with normal measurement. The render path now reuses cached Skia render fonts, records selection and text into a per-layout Skia picture, reuses stable presenter draw operations, and avoids per-frame picture-cache closure allocation. That cuts invalidated-frame allocation from about 13.76 MB to 6.65 KB and moves the latest full TextBox frame run ahead of Avalonia `TextBox`.
 
 ## Verification
 

@@ -18,6 +18,11 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
     private readonly ProTextBrush? _selectionForeground;
     private readonly int _selectionStart;
     private readonly int _selectionEnd;
+    private readonly ProTextBrush? _selectionBackground;
+    private readonly IReadOnlyList<ProTextSelectionRect> _selectionRects;
+    private readonly SKRect _contentClip;
+    private readonly CachedPicture _cachedPicture;
+    private readonly PictureKey _fullOpacityPictureKey;
 
     public ProTextBlockDrawOperation(
         Rect bounds,
@@ -27,7 +32,9 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
         FlowDirection flowDirection,
         ProTextBrush? selectionForeground = null,
         int selectionStart = 0,
-        int selectionEnd = 0)
+        int selectionEnd = 0,
+        ProTextBrush? selectionBackground = null,
+        IReadOnlyList<ProTextSelectionRect>? selectionRects = null)
     {
         Bounds = bounds;
         _contentBounds = contentBounds;
@@ -37,6 +44,19 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
         _selectionForeground = selectionForeground;
         _selectionStart = selectionStart;
         _selectionEnd = selectionEnd;
+        _selectionBackground = selectionBackground;
+        _selectionRects = selectionRects ?? [];
+        _contentClip = ToSkRect(contentBounds);
+        _cachedPicture = s_pictureCache.GetOrCreateValue(snapshot);
+        _fullOpacityPictureKey = new PictureKey(
+            _contentBounds,
+            _textAlignment,
+            _flowDirection,
+            _selectionBackground?.Fingerprint,
+            _selectionForeground?.Fingerprint,
+            _selectionStart,
+            _selectionEnd,
+            1d);
     }
 
     public Rect Bounds { get; }
@@ -59,14 +79,27 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
             && _flowDirection == other._flowDirection
             && Equals(_selectionForeground, other._selectionForeground)
             && _selectionStart == other._selectionStart
-            && _selectionEnd == other._selectionEnd;
+            && _selectionEnd == other._selectionEnd
+            && Equals(_selectionBackground, other._selectionBackground)
+            && ReferenceEquals(_selectionRects, other._selectionRects);
     }
 
     public override bool Equals(object? obj) => obj is ProTextBlockDrawOperation other && Equals(other);
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(Bounds, _contentBounds, _snapshot, _textAlignment, _flowDirection, _selectionForeground, _selectionStart, _selectionEnd);
+        var hash = new HashCode();
+        hash.Add(Bounds);
+        hash.Add(_contentBounds);
+        hash.Add(_snapshot);
+        hash.Add(_textAlignment);
+        hash.Add(_flowDirection);
+        hash.Add(_selectionForeground);
+        hash.Add(_selectionStart);
+        hash.Add(_selectionEnd);
+        hash.Add(_selectionBackground);
+        hash.Add(_selectionRects);
+        return hash.ToHashCode();
     }
 
     public void Render(ImmediateDrawingContext context)
@@ -80,21 +113,16 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
 
         using var lease = leaseFeature.Lease();
         var canvas = lease.SkCanvas;
-        var contentClip = ToSkRect(_contentBounds);
-        var key = new PictureKey(
-            _contentBounds,
-            _textAlignment,
-            _flowDirection,
-            _selectionForeground?.Fingerprint,
-            _selectionStart,
-            _selectionEnd,
-            lease.CurrentOpacity);
-        var picture = s_pictureCache.GetOrCreateValue(_snapshot).GetOrCreate(key, () => RecordPicture(contentClip, lease.CurrentOpacity));
+        var inheritedOpacity = lease.CurrentOpacity;
+        var key = inheritedOpacity.Equals(1d)
+            ? _fullOpacityPictureKey
+            : _fullOpacityPictureKey.WithInheritedOpacity(inheritedOpacity);
+        var picture = _cachedPicture.GetOrCreate(key, this, inheritedOpacity);
         var saveCount = canvas.Save();
 
         try
         {
-            canvas.ClipRect(contentClip);
+            canvas.ClipRect(_contentClip);
             canvas.DrawPicture(picture);
         }
         finally
@@ -116,6 +144,17 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
     private void DrawTextContent(SKCanvas canvas, SKRect contentClip, double inheritedOpacity)
     {
         using var paintCache = new PaintCache(contentClip, inheritedOpacity);
+
+        if (_selectionBackground is not null && _selectionRects.Count > 0)
+        {
+            using var selectionBackgroundPaint = CreatePaint(_selectionBackground, contentClip, inheritedOpacity);
+
+            foreach (var rect in _selectionRects)
+            {
+                canvas.DrawRect(ToSkRect(rect.Bounds), selectionBackgroundPaint);
+            }
+        }
+
         using var selectionPaint = _selectionForeground is null ? null : CreatePaint(_selectionForeground, contentClip, inheritedOpacity);
 
         for (var lineIndex = 0; lineIndex < _snapshot.Lines.Count; lineIndex++)
@@ -606,17 +645,32 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
         Rect ContentBounds,
         TextAlignment TextAlignment,
         FlowDirection FlowDirection,
+        string? SelectionBackgroundFingerprint,
         string? SelectionForegroundFingerprint,
         int SelectionStart,
         int SelectionEnd,
-        double InheritedOpacity);
+        double InheritedOpacity)
+    {
+        public PictureKey WithInheritedOpacity(double inheritedOpacity)
+        {
+            return new PictureKey(
+                ContentBounds,
+                TextAlignment,
+                FlowDirection,
+                SelectionBackgroundFingerprint,
+                SelectionForegroundFingerprint,
+                SelectionStart,
+                SelectionEnd,
+                inheritedOpacity);
+        }
+    }
 
     private sealed class CachedPicture
     {
         private PictureKey _key;
         private SKPicture? _picture;
 
-        public SKPicture GetOrCreate(PictureKey key, Func<SKPicture> create)
+        public SKPicture GetOrCreate(PictureKey key, ProTextBlockDrawOperation owner, double inheritedOpacity)
         {
             if (_picture is not null && _key.Equals(key))
             {
@@ -625,7 +679,7 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
 
             _picture?.Dispose();
             _key = key;
-            _picture = create();
+            _picture = owner.RecordPicture(owner._contentClip, inheritedOpacity);
             return _picture;
         }
     }

@@ -227,8 +227,20 @@ public class ProTextPresenter : Control
     private int _selectionRectStart;
     private int _selectionRectEnd;
     private double _selectionRectBoundsWidth;
+    private IBrush? _selectionBrushSnapshotSource;
+    private ProTextBrush? _selectionBrushSnapshot;
     private IBrush? _selectionForegroundSnapshotSource;
     private ProTextBrush? _selectionForegroundSnapshot;
+    private ProTextBlockDrawOperation? _drawOperation;
+    private ProTextLayoutSnapshot? _drawOperationSnapshot;
+    private Rect _drawOperationBounds;
+    private TextAlignment _drawOperationTextAlignment;
+    private FlowDirection _drawOperationFlowDirection;
+    private ProTextBrush? _drawOperationSelectionForeground;
+    private ProTextBrush? _drawOperationSelectionBackground;
+    private ProTextSelectionRect[]? _drawOperationSelectionRects;
+    private int _drawOperationSelectionStart;
+    private int _drawOperationSelectionEnd;
     private DispatcherTimer? _caretTimer;
     private bool _showCaret;
     private bool _caretBlink;
@@ -737,7 +749,7 @@ public class ProTextPresenter : Control
         }
 
         var selectionRects = GetSelectionRects(snapshot);
-        DrawSelection(context, selectionRects);
+        var selectionBackground = selectionRects.Length > 0 ? GetSelectionBrushSnapshot() : null;
 
         var selectionForeground = selectionRects.Length > 0 && ShouldUseSelectionForeground()
             ? GetSelectionForegroundSnapshot()
@@ -745,15 +757,14 @@ public class ProTextPresenter : Control
         var selectionStart = Math.Min(SelectionStart, SelectionEnd);
         var selectionEnd = Math.Max(SelectionStart, SelectionEnd);
 
-        context.Custom(new ProTextBlockDrawOperation(
-            bounds,
+        context.Custom(GetDrawOperation(
             bounds,
             snapshot,
-            TextAlignment,
-            FlowDirection,
             selectionForeground,
             selectionStart,
-            selectionEnd));
+            selectionEnd,
+            selectionBackground,
+            selectionRects));
 
         DrawCaret(context, snapshot, content);
     }
@@ -798,6 +809,12 @@ public class ProTextPresenter : Control
             || change.Property == CaretBrushProperty
             || change.Property == BackgroundProperty)
         {
+            if (change.Property == SelectionBrushProperty)
+            {
+                _selectionBrushSnapshotSource = null;
+                _selectionBrushSnapshot = null;
+            }
+
             if (change.Property == SelectionForegroundBrushProperty)
             {
                 _selectionForegroundSnapshotSource = null;
@@ -831,6 +848,7 @@ public class ProTextPresenter : Control
         _preparedKey = null;
         _prepared = null;
         _selectionRectSnapshot = null;
+        _drawOperation = null;
         InvalidateMeasure();
         InvalidateVisual();
     }
@@ -1028,19 +1046,6 @@ public class ProTextPresenter : Control
         }
     }
 
-    private void DrawSelection(DrawingContext context, IReadOnlyList<ProTextSelectionRect> selectionRects)
-    {
-        if (selectionRects.Count == 0 || SelectionBrush is null)
-        {
-            return;
-        }
-
-        foreach (var rect in selectionRects)
-        {
-            context.FillRectangle(SelectionBrush, rect.Bounds);
-        }
-    }
-
     private void DrawCaret(DrawingContext context, ProTextLayoutSnapshot snapshot, ProTextRichContent content)
     {
         if (!_showCaret || !_caretBlink || SelectionStart != SelectionEnd)
@@ -1080,6 +1085,73 @@ public class ProTextPresenter : Control
     private bool ShouldUseSelectionForeground()
     {
         return ShowSelectionHighlight && SelectionStart != SelectionEnd && SelectionForegroundBrush is not null;
+    }
+
+    private ProTextBlockDrawOperation GetDrawOperation(
+        Rect bounds,
+        ProTextLayoutSnapshot snapshot,
+        ProTextBrush? selectionForeground,
+        int selectionStart,
+        int selectionEnd,
+        ProTextBrush? selectionBackground,
+        ProTextSelectionRect[] selectionRects)
+    {
+        if (_drawOperation is not null
+            && ReferenceEquals(_drawOperationSnapshot, snapshot)
+            && _drawOperationBounds.Equals(bounds)
+            && _drawOperationTextAlignment == TextAlignment
+            && _drawOperationFlowDirection == FlowDirection
+            && Equals(_drawOperationSelectionForeground, selectionForeground)
+            && Equals(_drawOperationSelectionBackground, selectionBackground)
+            && ReferenceEquals(_drawOperationSelectionRects, selectionRects)
+            && _drawOperationSelectionStart == selectionStart
+            && _drawOperationSelectionEnd == selectionEnd)
+        {
+            return _drawOperation;
+        }
+
+        _drawOperation = new ProTextBlockDrawOperation(
+            bounds,
+            bounds,
+            snapshot,
+            TextAlignment,
+            FlowDirection,
+            selectionForeground,
+            selectionStart,
+            selectionEnd,
+            selectionBackground,
+            selectionRects);
+        _drawOperationSnapshot = snapshot;
+        _drawOperationBounds = bounds;
+        _drawOperationTextAlignment = TextAlignment;
+        _drawOperationFlowDirection = FlowDirection;
+        _drawOperationSelectionForeground = selectionForeground;
+        _drawOperationSelectionBackground = selectionBackground;
+        _drawOperationSelectionRects = selectionRects;
+        _drawOperationSelectionStart = selectionStart;
+        _drawOperationSelectionEnd = selectionEnd;
+
+        return _drawOperation;
+    }
+
+    private ProTextBrush? GetSelectionBrushSnapshot()
+    {
+        var brush = SelectionBrush;
+
+        if (brush is null)
+        {
+            _selectionBrushSnapshotSource = null;
+            _selectionBrushSnapshot = null;
+            return null;
+        }
+
+        if (!ReferenceEquals(_selectionBrushSnapshotSource, brush))
+        {
+            _selectionBrushSnapshotSource = brush;
+            _selectionBrushSnapshot = ProTextInlineBuilder.SnapshotBrush(brush);
+        }
+
+        return _selectionBrushSnapshot;
     }
 
     private ProTextBrush? GetSelectionForegroundSnapshot()
