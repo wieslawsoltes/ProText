@@ -102,15 +102,15 @@ Environment: Apple M3 Pro, .NET `10.0.5`, BenchmarkDotNet `0.15.8`, ShortRun job
 
 | Scenario | Avalonia TextBox | ProTextBox | Result |
 | --- | ---: | ---: | ---: |
-| Measure, width 220 | 1.326 ms, 285.7 KB | 57.43 us, 233.18 KB | 23.1x faster, 18% less memory |
-| Measure, width 440 | 1.242 ms, 215.05 KB | 47.08 us, 180.2 KB | 26.4x faster, 16% less memory |
-| Measure, width 880 | 1.215 ms, 185.08 KB | 41.85 us, 157.44 KB | 29.0x faster, 15% less memory |
-| Selected measure, width 220 | 1.325 ms, 285.7 KB | 768.82 us, 1.59 MB | 1.7x faster, higher memory |
-| Selected measure, width 440 | 1.262 ms, 215.05 KB | 722.45 us, 1.54 MB | 1.7x faster, higher memory |
-| Selected measure, width 880 | 1.213 ms, 185.08 KB | 734.64 us, 1.52 MB | 1.7x faster, higher memory |
-| Headless frame capture | 397.5 us, 10.29 KB | 10.121 ms, 13.73 MB | current ProTextBox render path is slower |
+| Measure, width 220 | 1.328 ms, 285.7 KB | 56.10 us, 233.18 KB | 23.7x faster, 18% less memory |
+| Measure, width 440 | 1.249 ms, 215.05 KB | 46.14 us, 180.2 KB | 27.1x faster, 16% less memory |
+| Measure, width 880 | 1.206 ms, 185.08 KB | 41.09 us, 157.44 KB | 29.4x faster, 15% less memory |
+| Selected measure, width 220 | 1.330 ms, 285.7 KB | 54.49 us, 233.18 KB | 24.4x faster, 18% less memory |
+| Selected measure, width 440 | 1.246 ms, 215.05 KB | 45.06 us, 180.2 KB | 27.6x faster, 16% less memory |
+| Selected measure, width 880 | 1.211 ms, 185.08 KB | 41.45 us, 157.44 KB | 29.2x faster, 15% less memory |
+| Headless frame capture | 389.9 us, 10.31 KB | 10.279 ms, 13.76 MB | current ProTextBox render path is slower |
 
-The main optimization achieved for `ProTextBox` is faster measurement on the ProText path while keeping the Fluent template hosted by `ProTextPresenter`. The plain measurement path also allocates less than Avalonia `TextBox`. Selection rendering is correct but currently allocation-heavy, and full headless frame capture is much slower than Avalonia `TextBox`; that is the next clear performance target.
+The main optimization achieved for `ProTextBox` is faster measurement on the ProText path while keeping the Fluent template hosted by `ProTextPresenter`. The selected measurement path now matches normal measurement because selection foreground styling is isolated to a render-only snapshot and non-collapsed selections skip caret-bound recomputation during measure/arrange. Full headless frame capture is still much slower than Avalonia `TextBox`; that render path is the next clear performance target.
 
 ## Verification
 
