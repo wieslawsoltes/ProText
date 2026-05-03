@@ -65,7 +65,7 @@ internal sealed class ProTextRichStyle
     public string RenderFingerprint { get; }
 }
 
-internal sealed record ProTextRichRun(string Text, ProTextRichStyle Style)
+internal sealed record ProTextRichRun(string Text, ProTextRichStyle Style, int TextStart)
 {
     public RichInlineItem ToRichInlineItem() => new(Text, Style.FontDescriptor);
 }
@@ -100,12 +100,13 @@ internal sealed class ProTextRichParagraph
 
 internal sealed class ProTextRichContent
 {
-    public ProTextRichContent(IReadOnlyList<ProTextRichParagraph> paragraphs, string layoutFingerprint, string renderFingerprint, double maxFontSize)
+    public ProTextRichContent(IReadOnlyList<ProTextRichParagraph> paragraphs, string layoutFingerprint, string renderFingerprint, double maxFontSize, string text)
     {
         Paragraphs = paragraphs;
         LayoutFingerprint = layoutFingerprint;
         RenderFingerprint = renderFingerprint;
         MaxFontSize = maxFontSize;
+        Text = text;
     }
 
     public IReadOnlyList<ProTextRichParagraph> Paragraphs { get; }
@@ -115,6 +116,8 @@ internal sealed class ProTextRichContent
     public string RenderFingerprint { get; }
 
     public double MaxFontSize { get; }
+
+    public string Text { get; }
 }
 
 internal readonly record struct ProTextRichCacheKey(string Fingerprint);

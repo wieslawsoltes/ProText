@@ -1,4 +1,3 @@
-using System.Text;
 using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
@@ -649,24 +648,14 @@ public class ProTextBlock : Control
             return false;
         }
 
-        var builder = new RichContentBuilder(CreateBaseStyle());
+        var baseStyle = CreateBaseStyle();
 
         if (Inlines is { Count: > 0 })
         {
-            foreach (var inline in Inlines)
-            {
-                if (!AppendInline(builder, inline, builder.BaseStyle))
-                {
-                    return false;
-                }
-            }
-        }
-        else
-        {
-            builder.AppendText(Text ?? string.Empty, builder.BaseStyle);
+            return ProTextInlineBuilder.TryCreateInlineContent(Inlines, baseStyle, out content);
         }
 
-        content = builder.Build();
+        content = ProTextInlineBuilder.CreateTextContent(Text, baseStyle);
         return true;
     }
 
@@ -732,115 +721,16 @@ public class ProTextBlock : Control
 
     private ProTextRichStyle CreateBaseStyle()
     {
-        return new ProTextRichStyle(
+        return ProTextInlineBuilder.CreateStyle(
             FontFamily,
             FontSize,
             FontStyle,
             FontWeight,
             FontStretch,
-            SnapshotBrush(Foreground),
-            SnapshotDecorations(TextDecorations),
+            Foreground,
+            TextDecorations,
             FontFeatures,
             LetterSpacing);
-    }
-
-    private static bool AppendInline(RichContentBuilder builder, Inline inline, ProTextRichStyle parentStyle)
-    {
-        if (inline is InlineUIContainer)
-        {
-            return true;
-        }
-
-        var style = ApplyInlineStyle(inline, parentStyle);
-
-        switch (inline)
-        {
-            case Run run:
-                builder.AppendText(run.Text ?? string.Empty, style);
-                return true;
-            case LineBreak:
-                builder.AppendLineBreak();
-                return true;
-            case Span span:
-                foreach (var child in span.Inlines)
-                {
-                    if (!AppendInline(builder, child, style))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static ProTextRichStyle ApplyInlineStyle(Inline inline, ProTextRichStyle parent)
-    {
-        return new ProTextRichStyle(
-            inline.IsSet(TextElement.FontFamilyProperty) ? inline.FontFamily : parent.FontFamily,
-            inline.IsSet(TextElement.FontSizeProperty) ? inline.FontSize : parent.FontSize,
-            inline.IsSet(TextElement.FontStyleProperty) ? inline.FontStyle : parent.FontStyle,
-            inline.IsSet(TextElement.FontWeightProperty) ? inline.FontWeight : parent.FontWeight,
-            inline.IsSet(TextElement.FontStretchProperty) ? inline.FontStretch : parent.FontStretch,
-            inline.IsSet(TextElement.ForegroundProperty) ? SnapshotBrush(inline.Foreground) : parent.Foreground,
-            inline.IsSet(Inline.TextDecorationsProperty) ? SnapshotDecorations(inline.TextDecorations) : parent.TextDecorations,
-            inline.IsSet(TextElement.FontFeaturesProperty) ? inline.FontFeatures : parent.FontFeatures,
-            inline.IsSet(TextElement.LetterSpacingProperty) ? inline.LetterSpacing : parent.LetterSpacing);
-    }
-
-    private static ProTextBrush? SnapshotBrush(IBrush? brush)
-    {
-        return brush switch
-        {
-            null => null,
-            ISolidColorBrush solid => new ProTextSolidBrush(solid.Color, solid.Opacity),
-            ILinearGradientBrush linear => new ProTextLinearGradientBrush(SnapshotGradientStops(linear), linear.Opacity, linear.SpreadMethod, linear.StartPoint, linear.EndPoint),
-            IRadialGradientBrush radial => new ProTextRadialGradientBrush(SnapshotGradientStops(radial), radial.Opacity, radial.SpreadMethod, radial.Center, radial.RadiusX, radial.RadiusY),
-            IConicGradientBrush conic => new ProTextConicGradientBrush(SnapshotGradientStops(conic), conic.Opacity, conic.SpreadMethod, conic.Center, conic.Angle),
-            _ => null
-        };
-    }
-
-    private static IReadOnlyList<ProTextGradientStop> SnapshotGradientStops(IGradientBrush brush)
-    {
-        var stops = new ProTextGradientStop[brush.GradientStops.Count];
-
-        for (var i = 0; i < stops.Length; i++)
-        {
-            var stop = brush.GradientStops[i];
-            stops[i] = new ProTextGradientStop(stop.Color, stop.Offset);
-        }
-
-        return stops;
-    }
-
-    private static IReadOnlyList<ProTextDecoration> SnapshotDecorations(TextDecorationCollection? decorations)
-    {
-        if (decorations is null || decorations.Count == 0)
-        {
-            return Array.Empty<ProTextDecoration>();
-        }
-
-        var snapshot = new ProTextDecoration[decorations.Count];
-
-        for (var i = 0; i < decorations.Count; i++)
-        {
-            var decoration = decorations[i];
-            snapshot[i] = new ProTextDecoration(
-                decoration.Location,
-                SnapshotBrush(decoration.Stroke),
-                decoration.StrokeThickness,
-                decoration.StrokeThicknessUnit,
-                decoration.StrokeDashArray?.ToArray() ?? Array.Empty<double>(),
-                decoration.StrokeDashOffset,
-                decoration.StrokeLineCap,
-                decoration.StrokeOffset,
-                decoration.StrokeOffsetUnit);
-        }
-
-        return snapshot;
     }
 
     private double ResolveMaxWidth(double availableWidth)
@@ -863,124 +753,6 @@ public class ProTextBlock : Control
         var fontSize = Math.Max(FontSize, content.MaxFontSize);
         var baseLineHeight = double.IsNaN(LineHeight) ? fontSize * PretextLineHeightMultiplier : LineHeight;
         return Math.Max(0, baseLineHeight + LineSpacing);
-    }
-
-    private sealed class RichContentBuilder
-    {
-        private readonly List<ProTextRichParagraph> _paragraphs = [];
-        private readonly List<ProTextRichRun> _runs = [];
-        private readonly StringBuilder _layoutFingerprint = new();
-        private readonly StringBuilder _renderFingerprint = new();
-        private double _maxFontSize;
-
-        public RichContentBuilder(ProTextRichStyle baseStyle)
-        {
-            BaseStyle = baseStyle;
-            _maxFontSize = baseStyle.FontSize;
-        }
-
-        public ProTextRichStyle BaseStyle { get; }
-
-        public void AppendText(string text, ProTextRichStyle style)
-        {
-            if (string.IsNullOrEmpty(text))
-            {
-                return;
-            }
-
-            var start = 0;
-
-            for (var i = 0; i < text.Length; i++)
-            {
-                if (text[i] != '\r' && text[i] != '\n')
-                {
-                    continue;
-                }
-
-                if (i > start)
-                {
-                    AppendRun(text[start..i], style);
-                }
-
-                if (text[i] == '\r' && i + 1 < text.Length && text[i + 1] == '\n')
-                {
-                    i++;
-                }
-
-                AppendLineBreak();
-                start = i + 1;
-            }
-
-            if (start < text.Length)
-            {
-                AppendRun(text[start..], style);
-            }
-        }
-
-        public void AppendLineBreak()
-        {
-            FlushParagraph(allowEmpty: true);
-        }
-
-        public ProTextRichContent Build()
-        {
-            FlushParagraph(allowEmpty: false);
-
-            return new ProTextRichContent(_paragraphs, _layoutFingerprint.ToString(), _renderFingerprint.ToString(), _maxFontSize);
-        }
-
-        private void AppendRun(string text, ProTextRichStyle style)
-        {
-            if (text.Length == 0)
-            {
-                return;
-            }
-
-            _runs.Add(new ProTextRichRun(text, style));
-            _maxFontSize = Math.Max(_maxFontSize, style.FontSize);
-        }
-
-        private void FlushParagraph(bool allowEmpty)
-        {
-            if (!allowEmpty && _runs.Count == 0)
-            {
-                return;
-            }
-
-            var paragraphLayoutFingerprint = CreateParagraphFingerprint(_runs, render: false);
-            var paragraphRenderFingerprint = CreateParagraphFingerprint(_runs, render: true);
-            _paragraphs.Add(new ProTextRichParagraph(_runs.ToArray(), paragraphLayoutFingerprint, paragraphRenderFingerprint));
-
-            if (_layoutFingerprint.Length > 0)
-            {
-                _layoutFingerprint.Append("|p|");
-                _renderFingerprint.Append("|p|");
-            }
-
-            _layoutFingerprint.Append(paragraphLayoutFingerprint);
-            _renderFingerprint.Append(paragraphRenderFingerprint);
-            _runs.Clear();
-        }
-
-        private static string CreateParagraphFingerprint(IReadOnlyList<ProTextRichRun> runs, bool render)
-        {
-            var builder = new StringBuilder();
-
-            foreach (var run in runs)
-            {
-                var styleFingerprint = render ? run.Style.RenderFingerprint : run.Style.FontDescriptor;
-                builder.Append(styleFingerprint.Length);
-                builder.Append(':');
-                builder.Append(styleFingerprint);
-                builder.Append('/');
-                builder.Append(run.Text.Length);
-                builder.Append(':');
-                builder.Append(run.Text);
-                builder.Append(';');
-            }
-
-            return builder.ToString();
-        }
     }
 
     private static Size DeflateNonNegative(Size size, Thickness thickness)
