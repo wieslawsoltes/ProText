@@ -1,13 +1,16 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Markup.Xaml.Styling;
 using Avalonia.Media;
 using Avalonia.Themes.Fluent;
+using Avalonia.VisualTree;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
 using ProTextBoxControl = ProTextBlock.ProTextBox;
+using ProTextPresenterControl = ProTextBlock.ProTextPresenter;
 
 BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
 
@@ -57,6 +60,11 @@ public class TextBoxLayoutBenchmarks
     private ProTextBoxControl _proTextBox = null!;
     private TextBox _avaloniaSelectedTextBox = null!;
     private ProTextBoxControl _proSelectedTextBox = null!;
+    private Window _avaloniaTextBoxWindow = null!;
+    private Window _proTextBoxWindow = null!;
+    private Window _avaloniaSelectedTextBoxWindow = null!;
+    private Window _proSelectedTextBoxWindow = null!;
+    private int _measureTick;
 
     [Params(220, 440, 880)]
     public double Width { get; set; }
@@ -70,38 +78,46 @@ public class TextBoxLayoutBenchmarks
         _proTextBox = CreateProTextBox(selection: false);
         _avaloniaSelectedTextBox = CreateAvaloniaTextBox(selection: true);
         _proSelectedTextBox = CreateProTextBox(selection: true);
+
+        _avaloniaTextBoxWindow = ShowBenchmarkedTextBox(_avaloniaTextBox, expectProPresenter: false);
+        _proTextBoxWindow = ShowBenchmarkedTextBox(_proTextBox, expectProPresenter: true);
+        _avaloniaSelectedTextBoxWindow = ShowBenchmarkedTextBox(_avaloniaSelectedTextBox, expectProPresenter: false);
+        _proSelectedTextBoxWindow = ShowBenchmarkedTextBox(_proSelectedTextBox, expectProPresenter: true);
     }
 
     [Benchmark(Baseline = true)]
     public Size AvaloniaTextBoxMeasure()
     {
-        _avaloniaTextBox.InvalidateMeasure();
-        _avaloniaTextBox.Measure(new Size(Width, double.PositiveInfinity));
-        return _avaloniaTextBox.DesiredSize;
+        return MeasureThemedTextBox(_avaloniaTextBox);
     }
 
     [Benchmark]
     public Size ProTextBoxMeasure()
     {
-        _proTextBox.InvalidateMeasure();
-        _proTextBox.Measure(new Size(Width, double.PositiveInfinity));
-        return _proTextBox.DesiredSize;
+        return MeasureThemedTextBox(_proTextBox);
     }
 
     [Benchmark]
     public Size AvaloniaTextBoxSelectedMeasure()
     {
-        _avaloniaSelectedTextBox.InvalidateMeasure();
-        _avaloniaSelectedTextBox.Measure(new Size(Width, double.PositiveInfinity));
-        return _avaloniaSelectedTextBox.DesiredSize;
+        return MeasureThemedTextBox(_avaloniaSelectedTextBox);
     }
 
     [Benchmark]
     public Size ProTextBoxSelectedMeasure()
     {
-        _proSelectedTextBox.InvalidateMeasure();
-        _proSelectedTextBox.Measure(new Size(Width, double.PositiveInfinity));
-        return _proSelectedTextBox.DesiredSize;
+        return MeasureThemedTextBox(_proSelectedTextBox);
+    }
+
+    private Size MeasureThemedTextBox(Control textBox)
+    {
+        var width = Width + ((++_measureTick & 1) == 0 ? 0 : 0.5);
+
+        textBox.InvalidateMeasure();
+        textBox.Measure(new Size(width, double.PositiveInfinity));
+        textBox.Arrange(new Rect(0, 0, width, textBox.DesiredSize.Height));
+
+        return textBox.DesiredSize;
     }
 
     private TextBox CreateAvaloniaTextBox(bool selection)
@@ -153,6 +169,45 @@ public class TextBoxLayoutBenchmarks
 
         return textBox;
     }
+
+    private static Window ShowBenchmarkedTextBox(Control textBox, bool expectProPresenter)
+    {
+        var window = new Window
+        {
+            Width = 960,
+            Height = 360,
+            Background = Brushes.White,
+            Content = new Border
+            {
+                Padding = new Thickness(20),
+                Child = textBox
+            }
+        };
+
+        window.Show();
+        textBox.ApplyTemplate();
+
+        ValidateThemeApplied(window, expectProPresenter);
+
+        return window;
+    }
+
+    private static void ValidateThemeApplied(Window window, bool expectProPresenter)
+    {
+        var hasPresenter = expectProPresenter
+            ? window.GetVisualDescendants().Any(visual => visual is ProTextPresenterControl)
+            : window.GetVisualDescendants().Any(visual => visual is TextPresenter);
+
+        if (!hasPresenter)
+        {
+            throw new InvalidOperationException(expectProPresenter
+                ? "ProTextBox benchmark did not apply the ProText Fluent theme: ProTextPresenter was not found."
+                : "Avalonia TextBox benchmark did not apply the Fluent TextBox theme: TextPresenter was not found.");
+        }
+
+        _ = window.CaptureRenderedFrame()
+            ?? throw new InvalidOperationException("The benchmark window did not render a headless frame.");
+    }
 }
 
 [MemoryDiagnoser]
@@ -165,26 +220,44 @@ public class TextBoxRenderBenchmarks
 
     private Window _avaloniaWindow = null!;
     private Window _proWindow = null!;
+    private TextBox _avaloniaTextBox = null!;
+    private ProTextBoxControl _proTextBox = null!;
+    private TextPresenter _avaloniaPresenter = null!;
+    private ProTextPresenterControl _proPresenter = null!;
 
     [GlobalSetup]
     public void Setup()
     {
         TextBoxBenchmarkHost.EnsureStarted();
-        _avaloniaWindow = CreateWindow(CreateAvaloniaTextBox());
-        _proWindow = CreateWindow(CreateProTextBox());
+        _avaloniaTextBox = CreateAvaloniaTextBox();
+        _proTextBox = CreateProTextBox();
+        _avaloniaWindow = CreateWindow(_avaloniaTextBox);
+        _proWindow = CreateWindow(_proTextBox);
         _avaloniaWindow.Show();
         _proWindow.Show();
+        _avaloniaTextBox.ApplyTemplate();
+        _proTextBox.ApplyTemplate();
+        _avaloniaPresenter = FindPresenter<TextPresenter>(_avaloniaWindow,
+            "Avalonia TextBox benchmark did not apply the Fluent TextBox theme: TextPresenter was not found.");
+        _proPresenter = FindPresenter<ProTextPresenterControl>(_proWindow,
+            "ProTextBox benchmark did not apply the ProText Fluent theme: ProTextPresenter was not found.");
+        _ = _avaloniaWindow.CaptureRenderedFrame()
+            ?? throw new InvalidOperationException("The Avalonia benchmark window did not render a headless frame.");
+        _ = _proWindow.CaptureRenderedFrame()
+            ?? throw new InvalidOperationException("The ProText benchmark window did not render a headless frame.");
     }
 
     [Benchmark(Baseline = true)]
     public object AvaloniaTextBoxFrame()
     {
+        _avaloniaPresenter.InvalidateVisual();
         return _avaloniaWindow.CaptureRenderedFrame()!;
     }
 
     [Benchmark]
     public object ProTextBoxFrame()
     {
+        _proPresenter.InvalidateVisual();
         return _proWindow.CaptureRenderedFrame()!;
     }
 
@@ -239,5 +312,12 @@ public class TextBoxRenderBenchmarks
                 Child = content
             }
         };
+    }
+
+    private static T FindPresenter<T>(Window window, string message)
+        where T : Control
+    {
+        return window.GetVisualDescendants().OfType<T>().FirstOrDefault()
+            ?? throw new InvalidOperationException(message);
     }
 }
