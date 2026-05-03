@@ -6,6 +6,7 @@ The package provides two controls:
 
 - `ProTextBlock`, a display control that mirrors the text-related `TextBlock` API surface where public Avalonia APIs make that practical.
 - `ProTextPresenter`, a reusable TextPresenter-like display component for editable surfaces that need Pretext-powered measurement, selection rectangles, caret bounds, password masking, preedit display, and rich inline presentation.
+- `ProTextBox`, a lightweight TextBox-like control with a Fluent TextBox theme copied from Avalonia and a `ProTextPresenter` hosted inside the template.
 
 Both controls use shared rich-inline flattening, Pretext prepared layout, and Skia drawing. Inline runs, trimming, decorations, letter spacing, font-feature-aware cache keys, multilingual text, Skia font fallback, and solid or gradient foreground brushes stay on the Pretext rendering path. The library does not delegate rendering to an internal Avalonia `TextBlock`.
 
@@ -17,6 +18,7 @@ Both controls use shared rich-inline flattening, Pretext prepared layout, and Sk
 - `benchmarks/ProTextBlock.Benchmarks` - BenchmarkDotNet layout and headless render benchmarks.
 - `benchmarks/ProTextBlock.InlineBenchmarks` - dedicated inline layout benchmarks.
 - `benchmarks/ProTextBlock.PresenterBenchmarks` - dedicated presenter measurement, hit-test, caret, selection, and render benchmarks.
+- `benchmarks/ProTextBlock.TextBoxBenchmarks` - TextBox versus ProTextBox measurement and headless render benchmarks.
 - `plan` - technical specification and implementation plan.
 
 ## Basic Usage
@@ -58,6 +60,18 @@ Rich inline content uses Avalonia document inline types, but layout and renderin
 
 Avalonia `TextBox` currently expects its template part to be Avalonia's own `TextPresenter` type, so `ProTextPresenter` is a reusable presenter for new/custom controls rather than a drop-in `PART_TextPresenter` replacement for the built-in `TextBox` template.
 
+`ProTextBox` provides a ready-to-use TextBox-like host for `ProTextPresenter`:
+
+```xml
+<pro:ProTextBox xmlns:pro="clr-namespace:ProTextBlock;assembly=ProTextBlock"
+                Text="Editable text presented through ProTextPresenter"
+                TextWrapping="Wrap"
+                SelectionStart="9"
+                SelectionEnd="22" />
+```
+
+Applications that want the Fluent `ProTextBox` theme should merge [Fluent.axaml](src/ProTextBlock/Themes/Fluent.axaml) after adding Avalonia's `FluentTheme`.
+
 ## Rendering Model
 
 The shared pipeline flattens plain text or supported inlines into immutable `ProTextRichContent`, prepares rich inline paragraphs through PretextSharp, keeps width-local layout snapshots per control, and renders retained custom draw operations through Skia. Render operations store immutable brush and decoration snapshots instead of live Avalonia brush objects.
@@ -72,6 +86,7 @@ dotnet test tests/ProTextBlock.Tests/ProTextBlock.Tests.csproj
 dotnet run -c Release --project benchmarks/ProTextBlock.Benchmarks/ProTextBlock.Benchmarks.csproj -- --list flat
 dotnet run -c Release --project benchmarks/ProTextBlock.InlineBenchmarks/ProTextBlock.InlineBenchmarks.csproj -- --list flat
 dotnet run -c Release --project benchmarks/ProTextBlock.PresenterBenchmarks/ProTextBlock.PresenterBenchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProTextBlock.TextBoxBenchmarks/ProTextBlock.TextBoxBenchmarks.csproj -- --list flat
 ```
 
 Run the sample app with:

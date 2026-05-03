@@ -67,6 +67,8 @@ Avalonia's in-repo `TextBlock` has access to internal infrastructure such as `II
 
 Avalonia's built-in `TextBox` template part is strongly typed to Avalonia's internal `TextPresenter` control. `ProTextPresenter` is therefore usable by custom controls and future ProText-based editable controls, but it is not a direct drop-in `PART_TextPresenter` replacement for Avalonia `TextBox` without changes in Avalonia itself or a custom text box implementation.
 
+`ProTextBox` is the package's custom TextBox-like host for `ProTextPresenter`. Its Fluent theme is copied from Avalonia's TextBox theme structure and adjusted to target `ProTextBox` and place `ProTextPresenter` at `PART_TextPresenter`. It supports the ProText-backed text display, selection, caret, password reveal, clear-button, placeholder, and basic edit-command surface needed by ProText-backed editable scenarios.
+
 Static cache API:
 
 - `ProTextBlockCache.Clear()` clears the library-level cache and Pretext's internal cache.
@@ -149,6 +151,7 @@ Known v1 limitations:
 - image, visual, and drawing foreground brushes are not translated to Skia text shaders yet
 - OpenType font features are part of the cache/layout identity; final shaping depends on the available Skia backend support
 - `ProTextPresenter` selection/caret APIs cover presenter-style display and hit testing, but full text editing command handling and built-in `TextBox` replacement are out of scope for this package phase
+- `ProTextBox` is a package-level custom control, not a mutation of Avalonia's built-in `TextBox`; advanced built-in TextBox features should be added deliberately as public API compatibility work
 
 ## Projects
 
@@ -158,6 +161,7 @@ Known v1 limitations:
 - `benchmarks/ProTextBlock.Benchmarks`: BenchmarkDotNet layout/render benchmarks
 - `benchmarks/ProTextBlock.InlineBenchmarks`: BenchmarkDotNet inline layout benchmarks
 - `benchmarks/ProTextBlock.PresenterBenchmarks`: BenchmarkDotNet presenter layout, caret, hit-test, selection, and render benchmarks
+- `benchmarks/ProTextBlock.TextBoxBenchmarks`: BenchmarkDotNet Avalonia `TextBox` versus `ProTextBox` measure and headless render benchmarks
 
 ## Verification
 
@@ -167,4 +171,5 @@ Known v1 limitations:
 - `dotnet run -c Release --project benchmarks/ProTextBlock.Benchmarks/ProTextBlock.Benchmarks.csproj -- --filter *`
 - `dotnet run -c Release --project benchmarks/ProTextBlock.InlineBenchmarks/ProTextBlock.InlineBenchmarks.csproj -- --list flat`
 - `dotnet run -c Release --project benchmarks/ProTextBlock.PresenterBenchmarks/ProTextBlock.PresenterBenchmarks.csproj -- --list flat`
+- `dotnet run -c Release --project benchmarks/ProTextBlock.TextBoxBenchmarks/ProTextBlock.TextBoxBenchmarks.csproj -- --list flat`
 - sample app launch: `dotnet run --project samples/ProTextBlock.Sample/ProTextBlock.Sample.csproj`

@@ -15,6 +15,7 @@
 - Use a Pretext rich-inline path for plain text, styled runs, trimming, decorations, letter spacing, font-feature cache identity, and solid or gradient foreground brushes.
 - Extract shared inline helpers for `Run`, `Span`, `Bold`, `Italic`, `Underline`, `LineBreak`, immutable brush snapshots, decoration snapshots, rich paragraphs, and logical text offsets.
 - Add `ProTextPresenter`, derived from `Avalonia.Controls.Control`, with presenter-style text, inline, selection, caret, preedit, password, hit-test, and measurement APIs backed by the shared Pretext rich-content and layout snapshot pipeline.
+- Add `ProTextBox`, derived from `Avalonia.Controls.Primitives.TemplatedControl`, with a copied Avalonia Fluent TextBox theme retargeted to host `ProTextPresenter` in the template.
 - Keep all text rendering in the Pretext-powered path; do not add or use an internal Avalonia `TextBlock` fallback visual.
 - Add `ProTextBlockCache` for shared prepared text cache management and diagnostics.
 - Add small internal helper types for font descriptor building, layout snapshots, and Skia drawing.
@@ -40,6 +41,7 @@
 - Add headless render tests that show `ProTextBlock` and `TextBlock` in the same window and capture a frame.
 - Add measurement tests for wrapping, no-wrap, max lines, and padding.
 - Add headless and layout tests for `ProTextPresenter` measure, caret bounds, hit testing, selection rendering, password masking, preedit text, and inline rendering.
+- Add headless template tests for `ProTextBox` to ensure the copied Fluent theme creates `ProTextPresenter`.
 
 ## 6. Benchmarks
 
@@ -53,6 +55,7 @@
   - headless render frame comparison
 - Add dedicated inline benchmark project for `TextBlock`, `ProTextBlock`, and `ProTextPresenter` inline measurement.
 - Add dedicated presenter benchmark project for presenter measurement, caret bounds, hit testing, selection, and render capture.
+- Add dedicated TextBox benchmark project for Avalonia `TextBox` versus `ProTextBox` measurement and headless render capture.
 - Keep benchmark input corpora realistic: short label, paragraph, and large repeated body text.
 
 ## 7. Verification
@@ -62,4 +65,5 @@
 - Run tests.
 - Run a smoke benchmark or at least verify the benchmark project builds.
 - Verify benchmark discovery for the base, inline, and presenter benchmark projects.
+- Run and compare the TextBox benchmark project when changing `ProTextBox` or its theme.
 - Start the sample app if the environment can launch an Avalonia desktop process; otherwise report the command.

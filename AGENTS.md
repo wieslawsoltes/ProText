@@ -6,6 +6,8 @@ Build `ProTextBlock`, a high-performance Avalonia 12.x text display control powe
 
 Also maintain `ProTextPresenter`, a reusable Pretext-powered presenter for custom editable text surfaces. It shares the same rich inline, layout, cache, and Skia rendering core as `ProTextBlock` and provides presenter-style caret, selection, preedit, password, hit-test, and measurement APIs.
 
+Maintain `ProTextBox` as a lightweight TextBox-like host for `ProTextPresenter`. Its Fluent theme is based on Avalonia's TextBox theme and must keep the visible text presenter on the ProText path.
+
 ## Hard Requirements
 
 - Target Avalonia `12.x.x` with the current package baseline in `Directory.Packages.props`.
@@ -31,6 +33,7 @@ Also maintain `ProTextPresenter`, a reusable Pretext-powered presenter for custo
 - Rendering should use Skia through Avalonia custom drawing with `ISkiaSharpApiLeaseFeature`.
 - If the Skia lease is unavailable, the custom draw operation may skip drawing rather than falling back to Avalonia `TextBlock`.
 - `ProTextPresenter` must keep selection, caret, preedit, password display, inlines, and hit testing on the Pretext/shared-rendering path. Do not call Avalonia `TextLayout` or use Avalonia `TextPresenter` internals from this package.
+- `ProTextBox` must host `ProTextPresenter` in its theme instead of Avalonia `TextPresenter`.
 
 ## API Compatibility Goals
 
@@ -38,6 +41,7 @@ Also maintain `ProTextPresenter`, a reusable Pretext-powered presenter for custo
 - Additional properties include `UseGlobalCache`, `UsePretextRendering`, `PretextWhiteSpace`, `PretextWordBreak`, and `PretextLineHeightMultiplier`.
 - `UsePretextRendering` must not activate an Avalonia `TextBlock` fallback. If disabled, it should not render through Avalonia `TextBlock`.
 - `ProTextPresenter` should provide TextPresenter-like public behavior for custom controls, but it is not a direct `PART_TextPresenter` replacement for Avalonia `TextBox` because built-in `TextBox` currently expects Avalonia's own `TextPresenter` type.
+- `ProTextBox` may expose a focused TextBox-like API for ProText-backed scenarios; it does not need to clone every built-in TextBox editing feature unless requested.
 
 ## Samples, Tests, Benchmarks, Docs
 
@@ -47,7 +51,8 @@ Also maintain `ProTextPresenter`, a reusable Pretext-powered presenter for custo
 - Include dense scrolling/sample content for artifact checks and cache visibility.
 - Maintain headless UI tests for measurement, rich rendering, cache behavior, multilingual Pretext-path behavior, and scroll rendering smoke coverage.
 - Maintain headless UI tests for `ProTextPresenter` measurement, caret bounds, hit testing, selection rendering, preedit text, password masking, and inline rendering.
-- Maintain BenchmarkDotNet benchmarks comparing Avalonia `TextBlock`, `ProTextBlock`, rich text, global/local cache paths, Pretext cold prepare, headless render capture, inline-specific paths, and `ProTextPresenter` presenter operations.
+- Maintain headless UI tests for `ProTextPresenter` measurement, caret bounds, hit testing, selection rendering, preedit text, password masking, inline rendering, and `ProTextBox` template presenter wiring.
+- Maintain BenchmarkDotNet benchmarks comparing Avalonia `TextBlock`, `ProTextBlock`, rich text, global/local cache paths, Pretext cold prepare, headless render capture, inline-specific paths, `ProTextPresenter` presenter operations, and Avalonia `TextBox` versus `ProTextBox`.
 - Keep `README.md`, `plan/technical-spec.md`, and `plan/implementation-plan.md` aligned with actual behavior.
 
 ## Verification Commands
@@ -66,6 +71,7 @@ For benchmark discovery or execution:
 dotnet run -c Release --project benchmarks/ProTextBlock.Benchmarks/ProTextBlock.Benchmarks.csproj -- --list flat
 dotnet run -c Release --project benchmarks/ProTextBlock.InlineBenchmarks/ProTextBlock.InlineBenchmarks.csproj -- --list flat
 dotnet run -c Release --project benchmarks/ProTextBlock.PresenterBenchmarks/ProTextBlock.PresenterBenchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProTextBlock.TextBoxBenchmarks/ProTextBlock.TextBoxBenchmarks.csproj -- --list flat
 ```
 
 ## Engineering Guidance
