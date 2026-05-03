@@ -222,6 +222,13 @@ public class ProTextPresenter : Control
     private ProTextRichCacheKey? _preparedKey;
     private ProTextPreparedContent? _prepared;
     private bool _preparedUsesGlobalCache;
+    private ProTextSelectionRect[] _selectionRects = [];
+    private ProTextLayoutSnapshot? _selectionRectSnapshot;
+    private int _selectionRectStart;
+    private int _selectionRectEnd;
+    private double _selectionRectBoundsWidth;
+    private IBrush? _selectionForegroundSnapshotSource;
+    private ProTextBrush? _selectionForegroundSnapshot;
     private DispatcherTimer? _caretTimer;
     private bool _showCaret;
     private bool _caretBlink;
@@ -729,26 +736,24 @@ public class ProTextPresenter : Control
             return;
         }
 
-        DrawSelection(context, snapshot);
+        var selectionRects = GetSelectionRects(snapshot);
+        DrawSelection(context, selectionRects);
 
-        using (context.PushClip(bounds))
-        {
-            var selectionForeground = ShouldUseSelectionForeground()
-                ? ProTextInlineBuilder.SnapshotBrush(SelectionForegroundBrush)
-                : null;
-            var selectionStart = Math.Min(SelectionStart, SelectionEnd);
-            var selectionEnd = Math.Max(SelectionStart, SelectionEnd);
+        var selectionForeground = selectionRects.Length > 0 && ShouldUseSelectionForeground()
+            ? GetSelectionForegroundSnapshot()
+            : null;
+        var selectionStart = Math.Min(SelectionStart, SelectionEnd);
+        var selectionEnd = Math.Max(SelectionStart, SelectionEnd);
 
-            context.Custom(new ProTextBlockDrawOperation(
-                bounds,
-                bounds,
-                snapshot,
-                TextAlignment,
-                FlowDirection,
-                selectionForeground,
-                selectionStart,
-                selectionEnd));
-        }
+        context.Custom(new ProTextBlockDrawOperation(
+            bounds,
+            bounds,
+            snapshot,
+            TextAlignment,
+            FlowDirection,
+            selectionForeground,
+            selectionStart,
+            selectionEnd));
 
         DrawCaret(context, snapshot, content);
     }
@@ -782,6 +787,7 @@ public class ProTextPresenter : Control
                 UpdateCaretBounds();
             }
 
+            _selectionRectSnapshot = null;
             InvalidateVisual();
             return;
         }
@@ -792,6 +798,12 @@ public class ProTextPresenter : Control
             || change.Property == CaretBrushProperty
             || change.Property == BackgroundProperty)
         {
+            if (change.Property == SelectionForegroundBrushProperty)
+            {
+                _selectionForegroundSnapshotSource = null;
+                _selectionForegroundSnapshot = null;
+            }
+
             InvalidateVisual();
             return;
         }
@@ -818,6 +830,7 @@ public class ProTextPresenter : Control
         _previousLayoutSnapshot = null;
         _preparedKey = null;
         _prepared = null;
+        _selectionRectSnapshot = null;
         InvalidateMeasure();
         InvalidateVisual();
     }
@@ -1015,19 +1028,16 @@ public class ProTextPresenter : Control
         }
     }
 
-    private void DrawSelection(DrawingContext context, ProTextLayoutSnapshot snapshot)
+    private void DrawSelection(DrawingContext context, IReadOnlyList<ProTextSelectionRect> selectionRects)
     {
-        if (!ShowSelectionHighlight || SelectionStart == SelectionEnd || SelectionBrush is null)
+        if (selectionRects.Count == 0 || SelectionBrush is null)
         {
             return;
         }
 
-        var start = Math.Min(SelectionStart, SelectionEnd);
-        var end = Math.Max(SelectionStart, SelectionEnd);
-
-        foreach (var rect in GetSelectionRects(snapshot, start, end))
+        foreach (var rect in selectionRects)
         {
-            context.FillRectangle(SelectionBrush, rect);
+            context.FillRectangle(SelectionBrush, rect.Bounds);
         }
     }
 
@@ -1072,8 +1082,57 @@ public class ProTextPresenter : Control
         return ShowSelectionHighlight && SelectionStart != SelectionEnd && SelectionForegroundBrush is not null;
     }
 
-    private IEnumerable<Rect> GetSelectionRects(ProTextLayoutSnapshot snapshot, int selectionStart, int selectionEnd)
+    private ProTextBrush? GetSelectionForegroundSnapshot()
     {
+        var brush = SelectionForegroundBrush;
+
+        if (brush is null)
+        {
+            _selectionForegroundSnapshotSource = null;
+            _selectionForegroundSnapshot = null;
+            return null;
+        }
+
+        if (!ReferenceEquals(_selectionForegroundSnapshotSource, brush))
+        {
+            _selectionForegroundSnapshotSource = brush;
+            _selectionForegroundSnapshot = ProTextInlineBuilder.SnapshotBrush(brush);
+        }
+
+        return _selectionForegroundSnapshot;
+    }
+
+    private ProTextSelectionRect[] GetSelectionRects(ProTextLayoutSnapshot snapshot)
+    {
+        if (!ShowSelectionHighlight || SelectionStart == SelectionEnd)
+        {
+            return [];
+        }
+
+        var selectionStart = Math.Min(SelectionStart, SelectionEnd);
+        var selectionEnd = Math.Max(SelectionStart, SelectionEnd);
+        var boundsWidth = Bounds.Width;
+
+        if (ReferenceEquals(_selectionRectSnapshot, snapshot)
+            && _selectionRectStart == selectionStart
+            && _selectionRectEnd == selectionEnd
+            && _selectionRectBoundsWidth.Equals(boundsWidth))
+        {
+            return _selectionRects;
+        }
+
+        _selectionRects = BuildSelectionRects(snapshot, selectionStart, selectionEnd);
+        _selectionRectSnapshot = snapshot;
+        _selectionRectStart = selectionStart;
+        _selectionRectEnd = selectionEnd;
+        _selectionRectBoundsWidth = boundsWidth;
+        return _selectionRects;
+    }
+
+    private ProTextSelectionRect[] BuildSelectionRects(ProTextLayoutSnapshot snapshot, int selectionStart, int selectionEnd)
+    {
+        var rects = new List<ProTextSelectionRect>();
+
         for (var lineIndex = 0; lineIndex < snapshot.Lines.Count; lineIndex++)
         {
             var line = snapshot.Lines[lineIndex];
@@ -1093,8 +1152,10 @@ public class ProTextPresenter : Control
                 (x1, x2) = (x2, x1);
             }
 
-            yield return new Rect(x1, lineIndex * snapshot.LineHeight, Math.Max(1, x2 - x1), snapshot.LineHeight);
+            rects.Add(new ProTextSelectionRect(lineIndex, new Rect(x1, lineIndex * snapshot.LineHeight, Math.Max(1, x2 - x1), snapshot.LineHeight)));
         }
+
+        return rects.Count == 0 ? [] : rects.ToArray();
     }
 
     private int GetCharacterIndex(ProTextLayoutSnapshot snapshot, Point point)

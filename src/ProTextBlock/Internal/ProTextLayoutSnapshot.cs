@@ -293,3 +293,5 @@ internal sealed record ProTextLayoutFragment(string Text, ProTextRichStyle Style
 {
     public int TextEnd => TextStart + TextLength;
 }
+
+internal readonly record struct ProTextSelectionRect(int LineIndex, Rect Bounds);

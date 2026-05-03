@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Rendering.SceneGraph;
@@ -8,6 +9,8 @@ namespace ProTextBlock.Internal;
 
 internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
 {
+    private static readonly ConditionalWeakTable<ProTextLayoutSnapshot, CachedPicture> s_pictureCache = new();
+
     private readonly ProTextLayoutSnapshot _snapshot;
     private readonly Rect _contentBounds;
     private readonly TextAlignment _textAlignment;
@@ -78,43 +81,55 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
         using var lease = leaseFeature.Lease();
         var canvas = lease.SkCanvas;
         var contentClip = ToSkRect(_contentBounds);
+        var key = new PictureKey(
+            _contentBounds,
+            _textAlignment,
+            _flowDirection,
+            _selectionForeground?.Fingerprint,
+            _selectionStart,
+            _selectionEnd,
+            lease.CurrentOpacity);
+        var picture = s_pictureCache.GetOrCreateValue(_snapshot).GetOrCreate(key, () => RecordPicture(contentClip, lease.CurrentOpacity));
         var saveCount = canvas.Save();
 
         try
         {
             canvas.ClipRect(contentClip);
-
-            for (var lineIndex = 0; lineIndex < _snapshot.Lines.Count; lineIndex++)
-            {
-                var line = _snapshot.Lines[lineIndex];
-
-                if (line.Fragments.Count == 0)
-                {
-                    continue;
-                }
-
-                var baseline = GetBaseline(line, lineIndex);
-                var alignedX = (float)GetAlignedX(line);
-
-                foreach (var fragment in line.Fragments)
-                {
-                    if (fragment.Text.Length == 0)
-                    {
-                        continue;
-                    }
-
-                    var renderFont = ProTextRenderFontCache.Get(fragment.Style);
-                    using var paint = CreatePaint(fragment.Style.Foreground, contentClip, lease.CurrentOpacity);
-                    var x = alignedX + (float)fragment.X;
-
-                    DrawFragment(canvas, fragment, x, baseline, renderFont, paint, contentClip, lease.CurrentOpacity);
-                    DrawDecorations(canvas, fragment, x, baseline, renderFont.Font, contentClip, lease.CurrentOpacity);
-                }
-            }
+            canvas.DrawPicture(picture);
         }
         finally
         {
             canvas.RestoreToCount(saveCount);
+        }
+    }
+
+    private SKPicture RecordPicture(SKRect contentClip, double inheritedOpacity)
+    {
+        using var recorder = new SKPictureRecorder();
+        var canvas = recorder.BeginRecording(contentClip);
+
+        DrawTextContent(canvas, contentClip, inheritedOpacity);
+
+        return recorder.EndRecording();
+    }
+
+    private void DrawTextContent(SKCanvas canvas, SKRect contentClip, double inheritedOpacity)
+    {
+        using var paintCache = new PaintCache(contentClip, inheritedOpacity);
+        using var selectionPaint = _selectionForeground is null ? null : CreatePaint(_selectionForeground, contentClip, inheritedOpacity);
+
+        for (var lineIndex = 0; lineIndex < _snapshot.Lines.Count; lineIndex++)
+        {
+            var line = _snapshot.Lines[lineIndex];
+
+            if (line.Fragments.Count == 0)
+            {
+                continue;
+            }
+
+            var baseline = GetBaseline(line, lineIndex);
+            var alignedX = (float)GetAlignedX(line);
+            DrawLine(canvas, line, alignedX, baseline, paintCache, selectionPaint);
         }
     }
 
@@ -240,6 +255,30 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
         return (colors, positions);
     }
 
+    private void DrawLine(
+        SKCanvas canvas,
+        ProTextLayoutLine line,
+        float alignedX,
+        float baseline,
+        PaintCache paintCache,
+        SKPaint? selectionPaint)
+    {
+        foreach (var fragment in line.Fragments)
+        {
+            if (fragment.Text.Length == 0)
+            {
+                continue;
+            }
+
+            var renderFont = ProTextRenderFontCache.Get(fragment.Style);
+            var paint = paintCache.Get(fragment.Style.Foreground);
+            var x = alignedX + (float)fragment.X;
+
+            DrawFragment(canvas, fragment, x, baseline, renderFont, paint, selectionPaint);
+            DrawDecorations(canvas, fragment, x, baseline, renderFont.Font, paintCache.ShaderBounds, paintCache.InheritedOpacity);
+        }
+    }
+
     private void DrawFragment(
         SKCanvas canvas,
         ProTextLayoutFragment fragment,
@@ -247,10 +286,9 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
         float baseline,
         ProTextRenderFont renderFont,
         SKPaint paint,
-        SKRect shaderBounds,
-        double inheritedOpacity)
+        SKPaint? selectionPaint)
     {
-        if (!TryGetSelectedTextRange(fragment, out var selectedStart, out var selectedEnd))
+        if (selectionPaint is null || !TryGetSelectedTextRange(fragment, out var selectedStart, out var selectedEnd))
         {
             DrawText(canvas, fragment.Text, x, baseline, fragment.Style, renderFont.Family, renderFont.FontStyle, renderFont.Typeface, renderFont.Font, paint);
             return;
@@ -262,17 +300,17 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
 
         if (localStart > 0)
         {
-            currentX += DrawText(canvas, fragment.Text[..localStart], currentX, baseline, fragment.Style, renderFont.Family, renderFont.FontStyle, renderFont.Typeface, renderFont.Font, paint);
-        }
-
-        using (var selectionPaint = CreatePaint(_selectionForeground, shaderBounds, inheritedOpacity))
-        {
-            currentX += DrawText(canvas, fragment.Text[localStart..localEnd], currentX, baseline, fragment.Style, renderFont.Family, renderFont.FontStyle, renderFont.Typeface, renderFont.Font, selectionPaint);
+            currentX += DrawTextAndMeasure(canvas, fragment.Text[..localStart], currentX, baseline, fragment.Style, renderFont.Family, renderFont.FontStyle, renderFont.Typeface, renderFont.Font, paint);
         }
 
         if (localEnd < fragment.Text.Length)
         {
+            currentX += DrawTextAndMeasure(canvas, fragment.Text[localStart..localEnd], currentX, baseline, fragment.Style, renderFont.Family, renderFont.FontStyle, renderFont.Typeface, renderFont.Font, selectionPaint);
             DrawText(canvas, fragment.Text[localEnd..], currentX, baseline, fragment.Style, renderFont.Family, renderFont.FontStyle, renderFont.Typeface, renderFont.Font, paint);
+        }
+        else
+        {
+            DrawText(canvas, fragment.Text[localStart..localEnd], currentX, baseline, fragment.Style, renderFont.Family, renderFont.FontStyle, renderFont.Typeface, renderFont.Font, selectionPaint);
         }
     }
 
@@ -291,7 +329,43 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
         return selectedStart < selectedEnd;
     }
 
-    private static float DrawText(
+    private static void DrawText(
+        SKCanvas canvas,
+        string text,
+        float x,
+        float baseline,
+        ProTextRichStyle style,
+        string family,
+        SKFontStyle fontStyle,
+        SKTypeface typeface,
+        SKFont font,
+        SKPaint paint)
+    {
+        if (style.LetterSpacing.Equals(0d) && typeface.ContainsGlyphs(text))
+        {
+            canvas.DrawText(text, x, baseline, font, paint);
+            return;
+        }
+
+        foreach (var grapheme in ProTextFontResolver.EnumerateGraphemes(text))
+        {
+            using var resolved = ProTextFontResolver.ResolveTypeface(typeface, family, fontStyle, grapheme);
+
+            if (ReferenceEquals(resolved.Typeface, typeface))
+            {
+                canvas.DrawText(grapheme, x, baseline, font, paint);
+                x += font.MeasureText(grapheme) + (float)style.LetterSpacing;
+            }
+            else
+            {
+                using var fallbackFont = ProTextFontResolver.CreateFont(resolved.Typeface, style.FontSize);
+                canvas.DrawText(grapheme, x, baseline, fallbackFont, paint);
+                x += fallbackFont.MeasureText(grapheme) + (float)style.LetterSpacing;
+            }
+        }
+    }
+
+    private static float DrawTextAndMeasure(
         SKCanvas canvas,
         string text,
         float x,
@@ -492,5 +566,67 @@ internal sealed class ProTextBlockDrawOperation : ICustomDrawOperation
         Left,
         Center,
         Right,
+    }
+
+    private sealed class PaintCache : IDisposable
+    {
+        private SKPaint? _paint;
+        private ProTextBrush? _brush;
+
+        public PaintCache(SKRect shaderBounds, double inheritedOpacity)
+        {
+            ShaderBounds = shaderBounds;
+            InheritedOpacity = inheritedOpacity;
+        }
+
+        public SKRect ShaderBounds { get; }
+
+        public double InheritedOpacity { get; }
+
+        public SKPaint Get(ProTextBrush? brush)
+        {
+            if (_paint is not null && Equals(_brush, brush))
+            {
+                return _paint;
+            }
+
+            _paint?.Dispose();
+            _paint = CreatePaint(brush, ShaderBounds, InheritedOpacity);
+            _brush = brush;
+            return _paint;
+        }
+
+        public void Dispose()
+        {
+            _paint?.Dispose();
+        }
+    }
+
+    private readonly record struct PictureKey(
+        Rect ContentBounds,
+        TextAlignment TextAlignment,
+        FlowDirection FlowDirection,
+        string? SelectionForegroundFingerprint,
+        int SelectionStart,
+        int SelectionEnd,
+        double InheritedOpacity);
+
+    private sealed class CachedPicture
+    {
+        private PictureKey _key;
+        private SKPicture? _picture;
+
+        public SKPicture GetOrCreate(PictureKey key, Func<SKPicture> create)
+        {
+            if (_picture is not null && _key.Equals(key))
+            {
+                return _picture;
+            }
+
+            _picture?.Dispose();
+            _key = key;
+            _picture = create();
+            return _picture;
+        }
     }
 }
