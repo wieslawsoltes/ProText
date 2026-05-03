@@ -1,0 +1,131 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:docs="using:Avalonia.Controls.Documents"
+        xmlns:pro="clr-namespace:ProTextBlock;assembly=ProTextBlock"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="820"
+        x:Class="ProTextBlock.Sample.MainWindow"
+        Title="ProTextBlock"
+        Width="1280"
+        Height="820"
+        MinWidth="980"
+        MinHeight="680">
+    <Grid RowDefinitions="Auto,*">
+        <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#DDE3EC" BorderThickness="0,0,0,1" Padding="24,18">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                    <TextBlock Classes="title" Text="ProTextBlock" />
+                    <TextBlock Classes="caption" Text="Avalonia TextBlock compatibility with PretextSharp layout for plain and rich display text." />
+                </StackPanel>
+                <TextBlock x:Name="CacheStatusText"
+                           Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Classes="caption" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnDefinitions="300,*">
+            <Border Grid.Column="0" Background="#F9FAFC" BorderBrush="#DDE3EC" BorderThickness="0,0,1,0" Padding="20">
+                <StackPanel Spacing="18">
+                    <StackPanel Spacing="8">
+                        <TextBlock Classes="sectionTitle" Text="Corpus" />
+                        <ComboBox x:Name="CorpusBox" SelectedIndex="1" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Classes="sectionTitle" Text="Font size" />
+                        <Slider x:Name="FontSizeSlider" Minimum="11" Maximum="28" Value="16" TickFrequency="1" IsSnapToTickEnabled="True" />
+                        <TextBlock x:Name="FontSizeValueText" Classes="caption" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Classes="sectionTitle" Text="Max lines" />
+                        <Slider x:Name="MaxLinesSlider" Minimum="0" Maximum="12" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" />
+                        <TextBlock x:Name="MaxLinesValueText" Classes="caption" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <CheckBox x:Name="WrapCheckBox" Content="Wrap text" IsChecked="True" />
+                        <CheckBox x:Name="CacheCheckBox" Content="Use global cache" IsChecked="True" />
+                    </StackPanel>
+
+                    <Button x:Name="ClearCacheButton" Content="Clear cache" HorizontalAlignment="Stretch" />
+                </StackPanel>
+            </Border>
+
+            <ScrollViewer Grid.Column="1">
+                <StackPanel Margin="24" Spacing="18">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+                        <Border Classes="panel" Padding="18">
+                            <StackPanel Spacing="12">
+                                <TextBlock Classes="sectionTitle" Text="Avalonia TextBlock" />
+                                <TextBlock x:Name="AvaloniaText"
+                                           TextWrapping="Wrap"
+                                           LineHeight="23"
+                                           Foreground="#17202C" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Classes="panel" Padding="18">
+                            <StackPanel Spacing="12">
+                                <TextBlock Classes="sectionTitle" Text="ProTextBlock" />
+                                <pro:ProTextBlock x:Name="ProText"
+                                                  TextWrapping="Wrap"
+                                                  LineHeight="23"
+                                                  Foreground="#17202C" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+                        <Border Classes="panel" Padding="18">
+                            <StackPanel Spacing="12">
+                                <TextBlock Classes="sectionTitle" Text="Inline TextBlock" />
+                                <TextBlock TextWrapping="Wrap" LineHeight="24" Foreground="#17202C">
+                                    <docs:Run Text="Inline content: " />
+                                    <docs:Bold>bold</docs:Bold>
+                                    <docs:Run Text=", " />
+                                    <docs:Italic>italic</docs:Italic>
+                                    <docs:Run Text=", and " />
+                                    <docs:Underline>underlined</docs:Underline>
+                                    <docs:Run Text=" runs continue to use Avalonia's original inline engine." />
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Classes="panel" Padding="18">
+                            <StackPanel Spacing="12">
+                                <TextBlock Classes="sectionTitle" Text="Inline ProTextBlock" />
+                                <pro:ProTextBlock TextWrapping="Wrap"
+                                                  LineHeight="24"
+                                                  Foreground="#17202C">
+                                    <docs:Run Text="Inline content: " />
+                                    <docs:Bold>bold</docs:Bold>
+                                    <docs:Run Text=", " />
+                                    <docs:Italic>italic</docs:Italic>
+                                    <docs:Run Text=", and " />
+                                    <docs:Underline>underlined</docs:Underline>
+                                    <docs:Run Text=" runs continue to use Avalonia's original inline engine." />
+                                </pro:ProTextBlock>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <Border Classes="panel" Padding="18">
+                        <StackPanel Spacing="14">
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+                                <TextBlock Classes="sectionTitle" Text="Dense Avalonia TextBlocks" />
+                                <TextBlock Grid.Column="1" Classes="sectionTitle" Text="Dense ProTextBlocks" />
+                            </Grid>
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="18">
+                                <UniformGrid x:Name="AvaloniaDenseGrid" Columns="3" />
+                                <UniformGrid x:Name="ProDenseGrid" Grid.Column="1" Columns="3" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>
