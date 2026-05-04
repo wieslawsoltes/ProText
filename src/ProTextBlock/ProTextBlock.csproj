@@ -6,8 +6,20 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>ProTextBlock</PackageId>
-    <Description>High-performance Avalonia 12 text block powered by PretextSharp.</Description>
+    <Title>ProText</Title>
+    <Authors>Wieslaw Soltes</Authors>
+    <Description>High-performance Avalonia 12 text controls powered by PretextSharp.</Description>
+    <PackageTags>Avalonia;Text;TextBlock;TextBox;PretextSharp;SkiaSharp</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/wieslawsoltes/ProText</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/wieslawsoltes/ProText</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" />
