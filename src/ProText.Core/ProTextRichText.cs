@@ -140,7 +140,7 @@ public abstract record ProTextBrush(double Opacity)
 
 public sealed record ProTextSolidBrush(ProTextColor Color, double Opacity) : ProTextBrush(Opacity)
 {
-    public override string Fingerprint { get; } = $"solid:{Color}:{Opacity:0.###}";
+    public override string Fingerprint { get; } = $"solid:{Color}:{ProTextFingerprint.Format(Opacity)}";
 }
 
 public sealed record ProTextLinearGradientBrush : ProTextBrush
@@ -156,7 +156,7 @@ public sealed record ProTextLinearGradientBrush : ProTextBrush
         SpreadMethod = spreadMethod;
         StartPoint = startPoint;
         EndPoint = endPoint;
-        Fingerprint = $"linear:{Opacity:0.###}:{SpreadMethod}:{StartPoint}:{EndPoint}:{string.Join(',', GradientStops)}";
+        Fingerprint = $"linear:{ProTextFingerprint.Format(Opacity)}:{SpreadMethod}:{StartPoint}:{EndPoint}:{string.Join(',', GradientStops)}";
     }
 
     public IReadOnlyList<ProTextGradientStop> GradientStops { get; }
@@ -185,7 +185,7 @@ public sealed record ProTextRadialGradientBrush : ProTextBrush
         Center = center;
         RadiusX = radiusX;
         RadiusY = radiusY;
-        Fingerprint = $"radial:{Opacity:0.###}:{SpreadMethod}:{Center}:{RadiusX}:{RadiusY}:{string.Join(',', GradientStops)}";
+        Fingerprint = $"radial:{ProTextFingerprint.Format(Opacity)}:{SpreadMethod}:{Center}:{RadiusX}:{RadiusY}:{string.Join(',', GradientStops)}";
     }
 
     public IReadOnlyList<ProTextGradientStop> GradientStops { get; }
@@ -214,7 +214,7 @@ public sealed record ProTextConicGradientBrush : ProTextBrush
         SpreadMethod = spreadMethod;
         Center = center;
         Angle = angle;
-        Fingerprint = $"conic:{Opacity:0.###}:{SpreadMethod}:{Center}:{Angle:0.###}:{string.Join(',', GradientStops)}";
+        Fingerprint = $"conic:{ProTextFingerprint.Format(Opacity)}:{SpreadMethod}:{Center}:{ProTextFingerprint.Format(Angle)}:{string.Join(',', GradientStops)}";
     }
 
     public IReadOnlyList<ProTextGradientStop> GradientStops { get; }
@@ -230,7 +230,7 @@ public sealed record ProTextConicGradientBrush : ProTextBrush
 
 public readonly record struct ProTextGradientStop(ProTextColor Color, double Offset)
 {
-    public override string ToString() => $"{Color}@{Offset:0.###}";
+    public override string ToString() => $"{Color}@{ProTextFingerprint.Format(Offset)}";
 }
 
 public sealed record ProTextDecoration
@@ -260,17 +260,17 @@ public sealed record ProTextDecoration
             ':',
             Stroke?.Fingerprint ?? "default",
             ':',
-            StrokeThickness.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
+            ProTextFingerprint.Format(StrokeThickness),
             ':',
             StrokeThicknessUnit,
             ':',
-            string.Join(',', StrokeDashArray.Select(static dash => dash.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture))),
+            string.Join(',', StrokeDashArray.Select(static dash => ProTextFingerprint.Format(dash))),
             ':',
-            StrokeDashOffset.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
+            ProTextFingerprint.Format(StrokeDashOffset),
             ':',
             StrokeLineCap,
             ':',
-            StrokeOffset.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
+            ProTextFingerprint.Format(StrokeOffset),
             ':',
             StrokeOffsetUnit);
     }

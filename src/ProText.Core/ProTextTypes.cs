@@ -164,6 +164,13 @@ public readonly record struct ProTextRelativePoint(double X, double Y, ProTextRe
             ? new ProTextPoint(bounds.X + bounds.Width * X, bounds.Y + bounds.Height * Y)
             : new ProTextPoint(bounds.X + X, bounds.Y + Y);
     }
+
+    public override string ToString() => string.Concat(
+        ProTextFingerprint.Format(X),
+        ',',
+        ProTextFingerprint.Format(Y),
+        ',',
+        Unit);
 }
 
 /// <summary>
@@ -175,4 +182,6 @@ public readonly record struct ProTextRelativeScalar(double Scalar, ProTextRelati
     {
         return Unit == ProTextRelativeUnit.Relative ? Scalar * size : Scalar;
     }
+
+    public override string ToString() => string.Concat(ProTextFingerprint.Format(Scalar), ',', Unit);
 }

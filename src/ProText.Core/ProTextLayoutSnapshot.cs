@@ -29,6 +29,29 @@ public sealed class ProTextLayoutSnapshot
         Height = LineCount * lineHeight;
     }
 
+    private ProTextLayoutSnapshot(
+        ProTextRichContent content,
+        double maxWidth,
+        double lineHeight,
+        int maxLines,
+        ProTextWrapping textWrapping,
+        ProTextTrimming textTrimming,
+        IReadOnlyList<ProTextLayoutLine> lines,
+        double width,
+        double height)
+    {
+        Content = content;
+        MaxWidth = maxWidth;
+        LineHeight = lineHeight;
+        MaxLines = maxLines;
+        TextWrapping = textWrapping;
+        TextTrimming = textTrimming;
+        Lines = lines;
+        LineCount = lines.Count;
+        Width = width;
+        Height = height;
+    }
+
     public ProTextRichContent Content { get; }
 
     public double MaxWidth { get; }
@@ -59,6 +82,48 @@ public sealed class ProTextLayoutSnapshot
             && MaxLines == maxLines
             && TextWrapping == textWrapping
             && TextTrimming == textTrimming;
+    }
+
+    public bool MatchesLayout(ProTextRichContent content, double maxWidth, double lineHeight, int maxLines, ProTextWrapping textWrapping, ProTextTrimming textTrimming)
+    {
+        return Content.LayoutFingerprint.Equals(content.LayoutFingerprint, StringComparison.Ordinal)
+            && MaxWidth.Equals(maxWidth)
+            && LineHeight.Equals(lineHeight)
+            && MaxLines == maxLines
+            && TextWrapping == textWrapping
+            && TextTrimming == textTrimming;
+    }
+
+    public ProTextLayoutSnapshot WithRenderContent(ProTextRichContent content)
+    {
+        if (Content.RenderFingerprint.Equals(content.RenderFingerprint, StringComparison.Ordinal))
+        {
+            return this;
+        }
+
+        if (!Content.LayoutFingerprint.Equals(content.LayoutFingerprint, StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Render content must have the same layout fingerprint.", nameof(content));
+        }
+
+        var lines = new ProTextLayoutLine[Lines.Count];
+
+        for (var i = 0; i < Lines.Count; i++)
+        {
+            var line = Lines[i];
+            var fragments = new ProTextLayoutFragment[line.Fragments.Count];
+
+            for (var j = 0; j < fragments.Length; j++)
+            {
+                var fragment = line.Fragments[j];
+                var style = ResolveRenderStyle(content, fragment);
+                fragments[j] = fragment with { Style = style };
+            }
+
+            lines[i] = line with { Fragments = fragments };
+        }
+
+        return new ProTextLayoutSnapshot(content, MaxWidth, LineHeight, MaxLines, TextWrapping, TextTrimming, lines, Width, Height);
     }
 
     private static IReadOnlyList<ProTextLayoutLine> BuildLines(
@@ -96,7 +161,7 @@ public sealed class ProTextLayoutSnapshot
                 }
 
                 var line = PretextLayout.MaterializeRichInlineLineRange(prepared.Paragraphs[paragraphIndex], range);
-                allLines.Add(CreateLine(paragraph, line, runSearchOffsets));
+                allLines.Add(CreateLine(paragraphIndex, paragraph, line, runSearchOffsets));
                 cursor = range.End;
             }
         }
@@ -140,7 +205,7 @@ public sealed class ProTextLayoutSnapshot
         return int.MaxValue;
     }
 
-    private static ProTextLayoutLine CreateLine(ProTextRichParagraph paragraph, RichInlineLine line, int[] runSearchOffsets)
+    private static ProTextLayoutLine CreateLine(int paragraphIndex, ProTextRichParagraph paragraph, RichInlineLine line, int[] runSearchOffsets)
     {
         var fragments = new ProTextLayoutFragment[line.Fragments.Length];
         var x = 0d;
@@ -156,7 +221,7 @@ public sealed class ProTextLayoutSnapshot
             runSearchOffsets[fragment.ItemIndex] = Math.Min(run.Text.Length, runOffset + fragment.Text.Length);
             var textStart = run.TextStart + runOffset;
             var textEnd = textStart + fragment.Text.Length;
-            fragments[i] = new ProTextLayoutFragment(fragment.Text, run.Style, x, fragment.OccupiedWidth, textStart, fragment.Text.Length);
+            fragments[i] = new ProTextLayoutFragment(fragment.Text, run.Style, x, fragment.OccupiedWidth, textStart, fragment.Text.Length, paragraphIndex, fragment.ItemIndex);
             lineStart = Math.Min(lineStart, textStart);
             lineEnd = Math.Max(lineEnd, textEnd);
             x += fragment.OccupiedWidth;
@@ -194,7 +259,12 @@ public sealed class ProTextLayoutSnapshot
 
         if (targetWidth <= ellipsisWidth)
         {
-            return new ProTextLayoutLine([new ProTextLayoutFragment("…", ellipsisStyle, 0, ellipsisWidth, line.StartTextIndex, 0)], ellipsisWidth, line.StartTextIndex, line.StartTextIndex);
+            var sourceFragment = line.Fragments.Last(static fragment => fragment.Text.Length > 0);
+            return new ProTextLayoutLine(
+                [new ProTextLayoutFragment("…", ellipsisStyle, 0, ellipsisWidth, line.StartTextIndex, 0, sourceFragment.ParagraphIndex, sourceFragment.RunIndex)],
+                ellipsisWidth,
+                line.StartTextIndex,
+                line.StartTextIndex);
         }
 
         while (source.Count > 0 && MeasureLineWidth(source) + ellipsisWidth > targetWidth)
@@ -226,10 +296,24 @@ public sealed class ProTextLayoutSnapshot
 
         if (source.Count == 0)
         {
-            return new ProTextLayoutLine([new ProTextLayoutFragment("…", ellipsisStyle, 0, ellipsisWidth, line.StartTextIndex, 0)], ellipsisWidth, line.StartTextIndex, line.StartTextIndex);
+            var sourceFragment = line.Fragments.Last(static fragment => fragment.Text.Length > 0);
+            return new ProTextLayoutLine(
+                [new ProTextLayoutFragment("…", ellipsisStyle, 0, ellipsisWidth, line.StartTextIndex, 0, sourceFragment.ParagraphIndex, sourceFragment.RunIndex)],
+                ellipsisWidth,
+                line.StartTextIndex,
+                line.StartTextIndex);
         }
 
-        source.Add(new ProTextLayoutFragment("…", ellipsisStyle, 0, ellipsisWidth, source[^1].TextEnd, 0));
+        var ellipsisSource = source[^1];
+        source.Add(new ProTextLayoutFragment(
+            "…",
+            ellipsisStyle,
+            0,
+            ellipsisWidth,
+            ellipsisSource.TextEnd,
+            0,
+            ellipsisSource.ParagraphIndex,
+            ellipsisSource.RunIndex));
         return NormalizeFragmentPositions(source);
     }
 
@@ -283,6 +367,19 @@ public sealed class ProTextLayoutSnapshot
     {
         return ProTextRenderFontCache.MeasureText(text, style);
     }
+
+    private static ProTextRichStyle ResolveRenderStyle(ProTextRichContent content, ProTextLayoutFragment fragment)
+    {
+        if (fragment.ParagraphIndex >= 0
+            && fragment.ParagraphIndex < content.Paragraphs.Count
+            && fragment.RunIndex >= 0
+            && fragment.RunIndex < content.Paragraphs[fragment.ParagraphIndex].Runs.Count)
+        {
+            return content.Paragraphs[fragment.ParagraphIndex].Runs[fragment.RunIndex].Style;
+        }
+
+        return fragment.Style;
+    }
 }
 
 public sealed record ProTextLayoutLine(IReadOnlyList<ProTextLayoutFragment> Fragments, double Width, int StartTextIndex, int EndTextIndex)
@@ -290,7 +387,15 @@ public sealed record ProTextLayoutLine(IReadOnlyList<ProTextLayoutFragment> Frag
     public static ProTextLayoutLine Empty { get; } = new([], 0, 0, 0);
 }
 
-public sealed record ProTextLayoutFragment(string Text, ProTextRichStyle Style, double X, double Width, int TextStart, int TextLength)
+public sealed record ProTextLayoutFragment(
+    string Text,
+    ProTextRichStyle Style,
+    double X,
+    double Width,
+    int TextStart,
+    int TextLength,
+    int ParagraphIndex = -1,
+    int RunIndex = -1)
 {
     public int TextEnd => TextStart + TextLength;
 }

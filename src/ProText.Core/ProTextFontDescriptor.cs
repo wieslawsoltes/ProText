@@ -32,8 +32,8 @@ public static class ProTextFontDescriptor
             _ => string.Empty
         };
         var weightValue = weight.ToString(CultureInfo.InvariantCulture);
-        var sizeValue = size.ToString("0.###", CultureInfo.InvariantCulture);
-        var letterSpacingValue = letterSpacing.ToString("0.###", CultureInfo.InvariantCulture);
+        var sizeValue = ProTextFingerprint.Format(size);
+        var letterSpacingValue = ProTextFingerprint.Format(letterSpacing);
         var stretchValue = stretch.ToString(CultureInfo.InvariantCulture);
         var featuresValue = string.IsNullOrWhiteSpace(fontFeaturesFingerprint) ? "none" : fontFeaturesFingerprint;
 
