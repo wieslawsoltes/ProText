@@ -58,14 +58,14 @@ Avalonia's in-repo `TextBlock` has access to internal infrastructure such as `II
 - `Foreground`
 - font family/size/style/weight/stretch/features
 - text alignment, wrapping, trimming, decorations, line height/spacing, and letter spacing
-- `CaretIndex`, `ShowCaret()`, `HideCaret()`, `MoveCaretToTextPosition(int)`, and `MoveCaretToPoint(Point)`
+- `CaretIndex`, `ShowCaret()`, `HideCaret()`, `MoveCaretToTextPosition(int)`, `MoveCaretToPoint(Point)`, `MoveCaretHorizontal(LogicalDirection)`, and `MoveCaretVertical(LogicalDirection)`
 - `SelectionStart`, `SelectionEnd`, `ShowSelectionHighlight`, `SelectionBrush`, and `SelectionForegroundBrush`
 - `PasswordChar` and `RevealPassword`
-- `GetCaretBounds(int)`, `GetCharacterIndex(Point)`, and `MeasureText(double)`
+- `GetNextCharacterHit(LogicalDirection)`, `GetCaretBounds(int)`, `GetCharacterIndex(Point)`, `GetLineCount()`, `GetLineBounds(int)`, and `MeasureText(double)`
 
 Avalonia's built-in `TextBox` template part is strongly typed to Avalonia's internal `TextPresenter` control. `ProTextPresenter` is therefore usable by custom controls and future ProText-based editable controls, but it is not a direct drop-in `PART_TextPresenter` replacement for Avalonia `TextBox` without changes in Avalonia itself or a custom text box implementation.
 
-`ProTextBox` is the package's custom TextBox-like host for `ProTextPresenter`. Its Fluent theme is copied from Avalonia's TextBox theme structure and adjusted to target `ProTextBox` and place `ProTextPresenter` at `PART_TextPresenter`. It supports the ProText-backed text display, selection, caret, password reveal, clear-button, placeholder, and basic edit-command surface needed by ProText-backed editable scenarios.
+`ProTextBox` is the package's custom TextBox-like host for `ProTextPresenter`. Its Fluent theme is copied from Avalonia's TextBox theme structure and adjusted to target `ProTextBox` and place `ProTextPresenter` at `PART_TextPresenter`. It supports the ProText-backed text display, mouse drag and keyboard selection, caret, password reveal, clear-button, placeholder/watermark aliases, undo/redo state, clipboard state/events, line count/scroll APIs, and TextBox-compatible edit-command surface needed by ProText-backed editable scenarios.
 
 Static cache API:
 
@@ -148,8 +148,8 @@ Known v1 limitations:
 - complex-script shaping is limited by the active Skia/Pretext backend; font fallback is handled by the ProText Skia font resolver
 - image, visual, and drawing foreground brushes are not translated to Skia text shaders yet
 - OpenType font features are part of the cache/layout identity; final shaping depends on the available Skia backend support
-- `ProTextPresenter` selection/caret APIs cover presenter-style display and hit testing, but full text editing command handling and built-in `TextBox` replacement are out of scope for this package phase
-- `ProTextBox` is a package-level custom control, not a mutation of Avalonia's built-in `TextBox`; advanced built-in TextBox features should be added deliberately as public API compatibility work
+- `ProTextPresenter` exposes presenter-style movement, hit testing, caret bounds, line count, and selection APIs backed by retained ProText layout snapshots rather than Avalonia `TextLayout`
+- `ProTextBox` is a package-level custom control, not a mutation of Avalonia's built-in `TextBox`; future built-in TextBox feature gaps should be added deliberately as public API compatibility work on the ProText path
 
 ## Projects
 

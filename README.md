@@ -71,8 +71,8 @@ Notable features include:
 - `PreeditText` and `PreeditTextCursorPosition` for IME composition display
 - `CaretIndex`, `SelectionStart`, `SelectionEnd`, `ShowSelectionHighlight`, `SelectionBrush`, `SelectionForegroundBrush`, `CaretBrush`, and `CaretBlinkInterval`
 - `PasswordChar` and `RevealPassword`
-- `ShowCaret()`, `HideCaret()`, `MoveCaretToTextPosition(int)`, and `MoveCaretToPoint(Point)`
-- `GetCharacterIndex(Point)`, `GetCaretBounds(int)`, and `MeasureText(double)`
+- `ShowCaret()`, `HideCaret()`, `MoveCaretToTextPosition(int)`, `MoveCaretToPoint(Point)`, `MoveCaretHorizontal(LogicalDirection)`, and `MoveCaretVertical(LogicalDirection)`
+- `GetNextCharacterHit(LogicalDirection)`, `GetCharacterIndex(Point)`, `GetCaretBounds(int)`, `GetLineCount()`, `GetLineBounds(int)`, and `MeasureText(double)`
 - `CaretBoundsChanged` event
 
 Use `ProTextPresenter` when building a custom editor, search box, command surface, code-like text host, or any control that needs text presentation primitives but owns its own editing behavior.
@@ -85,12 +85,15 @@ It provides a focused TextBox-style API:
 
 - two-way `Text`
 - `AcceptsReturn`, `AcceptsTab`, and `NewLine`
-- `IsReadOnly`, `MaxLength`, `UndoLimit`, `CanUndo`, `CanRedo`, `Undo()`, and `Redo()`
-- `CaretIndex`, `SelectionStart`, `SelectionEnd`, `SelectedText`, and `SelectAll()`
+- `IsReadOnly`, `MaxLength`, `MinLines`, `MaxLines`, `IsUndoEnabled`, `UndoLimit`, `CanUndo`, `CanRedo`, `Undo()`, and `Redo()`
+- `CaretIndex`, `SelectionStart`, `SelectionEnd`, `SelectedText`, `SelectAll()`, and `ClearSelection()`
+- mouse drag selection, shift-click extension, double-click word selection, triple-click line selection, and keyboard word/line navigation
 - clipboard-oriented state such as `CanCut`, `CanCopy`, and `CanPaste`
-- `PasswordChar`, `RevealPassword`, placeholder text, floating placeholders, and placeholder foreground
+- text and clipboard routed events such as `TextChanging`, `TextChanged`, `CopyingToClipboard`, `CuttingToClipboard`, and `PastingFromClipboard`
+- `PasswordChar`, `RevealPassword`, placeholder/watermark text aliases, floating placeholder/watermark aliases, and placeholder/watermark foreground aliases
 - `InnerLeftContent` and `InnerRightContent`
 - `TextAlignment`, `TextWrapping`, `TextDecorations`, `LineHeight`, content alignment, selection brushes, caret brush, and caret blink interval
+- `GetLineCount()` and `ScrollToLine(int)` backed by `ProTextPresenter` layout data
 - `UseGlobalCache`, `UsePretextRendering`, and `PretextLineHeightMultiplier`
 
 Avalonia's built-in `TextBox` expects Avalonia's own `TextPresenter` template part, so `ProTextPresenter` is not a drop-in replacement for the built-in `TextBox` template. `ProTextBox` exists as the ProText-backed editable host.

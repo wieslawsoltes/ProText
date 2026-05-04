@@ -40,8 +40,8 @@
 - Add unit tests for cache reuse, cache bypass, property invalidation, rich-path eligibility, multilingual Pretext rendering, and the no-Avalonia-fallback invariant.
 - Add headless render tests that show `ProTextBlock` and `TextBlock` in the same window and capture a frame.
 - Add measurement tests for wrapping, no-wrap, max lines, and padding.
-- Add headless and layout tests for `ProTextPresenter` measure, caret bounds, hit testing, selection rendering, password masking, preedit text, and inline rendering.
-- Add headless template tests for `ProTextBox` to ensure the copied Fluent theme creates `ProTextPresenter`.
+- Add headless and layout tests for `ProTextPresenter` measure, caret bounds, caret movement, hit testing, selection rendering, password masking, preedit text, and inline rendering.
+- Add headless template and input tests for `ProTextBox` to ensure the copied Fluent theme creates `ProTextPresenter`, mouse/keyboard selection works, and TextBox-compatible API state/events remain synchronized.
 
 ## 6. Benchmarks
 
@@ -55,7 +55,7 @@
   - headless render frame comparison
 - Add dedicated inline benchmark project for `TextBlock`, `ProTextBlock`, and `ProTextPresenter` inline measurement.
 - Add dedicated presenter benchmark project for presenter measurement, caret bounds, hit testing, selection, and render capture.
-- Add dedicated TextBox benchmark project for Avalonia `TextBox` versus `ProTextBox` measurement and headless render capture.
+- Add dedicated TextBox benchmark project for Avalonia `TextBox` versus `ProTextBox` measurement and headless render capture, including selected-text state.
 - Keep benchmark input corpora realistic: short label, paragraph, and large repeated body text.
 
 ## 7. Verification
