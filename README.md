@@ -1,10 +1,10 @@
-# ProText
+# ProText.Avalonia
 
 High-performance Avalonia 12 text controls powered by PretextSharp.
 
-ProText is a focused text rendering toolkit for Avalonia applications that need fast measurement, predictable caching, rich inline display, editable text presentation, and TextBox-like input surfaces without routing text rendering through Avalonia `TextBlock` fallbacks.
+ProText.Avalonia is a focused text rendering toolkit for Avalonia applications that need fast measurement, predictable caching, rich inline display, editable text presentation, and TextBox-like input surfaces without routing text rendering through Avalonia `TextBlock` fallbacks.
 
-The repository keeps the Avalonia controls package, assembly name, and CLR namespace as `ProText`. The reusable preparation, layout, cache, font, and Skia rendering implementation lives in `ProText.Core` so the same text engine can be adapted by other UI frameworks without referencing Avalonia.
+The repository keeps the reusable preparation, layout, cache, font, and Skia rendering implementation in `ProText.Core`. The Avalonia controls package, assembly name, and CLR namespace are `ProText.Avalonia` so the same text engine can be adapted by other UI frameworks without referencing Avalonia.
 
 The controls are mapped into Avalonia's XML namespace through assembly-level `XmlnsDefinition` metadata, so they can be used directly in normal Avalonia XAML once the package or project reference is present.
 
@@ -13,18 +13,18 @@ The controls are mapped into Avalonia's XML namespace through assembly-level `Xm
 | Package | Version | Downloads | Purpose |
 | --- | --- | --- | --- |
 | [ProText.Core](https://www.nuget.org/packages/ProText.Core/) | [![NuGet](https://img.shields.io/nuget/v/ProText.Core.svg)](https://www.nuget.org/packages/ProText.Core/) | [![Downloads](https://img.shields.io/nuget/dt/ProText.Core.svg)](https://www.nuget.org/packages/ProText.Core/) | Framework-neutral Pretext rich content, layout snapshots, cache, font fallback, selection geometry, and Skia rendering services. |
-| [ProText](https://www.nuget.org/packages/ProText/) | [![NuGet](https://img.shields.io/nuget/v/ProText.svg)](https://www.nuget.org/packages/ProText/) | [![Downloads](https://img.shields.io/nuget/dt/ProText.svg)](https://www.nuget.org/packages/ProText/) | ProText control library with `ProTextBlock`, `ProTextPresenter`, `ProTextBox`, Fluent theme resources, XML documentation, README metadata, and symbol packages. |
+| [ProText.Avalonia](https://www.nuget.org/packages/ProText.Avalonia/) | [![NuGet](https://img.shields.io/nuget/v/ProText.Avalonia.svg)](https://www.nuget.org/packages/ProText.Avalonia/) | [![Downloads](https://img.shields.io/nuget/dt/ProText.Avalonia.svg)](https://www.nuget.org/packages/ProText.Avalonia/) | ProText control library with `ProTextBlock`, `ProTextPresenter`, `ProTextBox`, Fluent theme resources, XML documentation, README metadata, and symbol packages. |
 
 Install the Avalonia controls package with:
 
 ```bash
-dotnet add package ProText
+dotnet add package ProText.Avalonia
 ```
 
 Or reference it directly from a project file:
 
 ```xml
-<PackageReference Include="ProText" Version="0.1.0" />
+<PackageReference Include="ProText.Avalonia" Version="0.1.0" />
 ```
 
 For a non-Avalonia host or framework adapter, reference the core package:
@@ -36,16 +36,16 @@ dotnet add package ProText.Core
 For local development inside this repository, reference the project directly:
 
 ```xml
-<ProjectReference Include="../../src/ProText/ProText.csproj" />
+<ProjectReference Include="../../src/ProText.Avalonia/ProText.Avalonia.csproj" />
 ```
 
-`ProText` references `ProText.Core`; non-Avalonia hosts can reference [src/ProText.Core/ProText.Core.csproj](src/ProText.Core/ProText.Core.csproj) directly and provide their own font/style/content adapters.
+`ProText.Avalonia` references `ProText.Core`; non-Avalonia hosts can reference [src/ProText.Core/ProText.Core.csproj](src/ProText.Core/ProText.Core.csproj) directly and provide their own font/style/content adapters.
 
 Avalonia package metadata:
 
-- Package id: `ProText`
-- Package title: `ProText`
-- Description: `High-performance Avalonia 12 text controls powered by PretextSharp.`
+- Package id: `ProText.Avalonia`
+- Package title: `ProText.Avalonia`
+- Description: `High-performance Avalonia 12 text controls powered by ProText.Core and PretextSharp.`
 - License: `MIT`
 - Repository: `https://github.com/wieslawsoltes/ProText`
 - Dependencies: `ProText.Core`, Avalonia, Avalonia Skia rendering support, and Pretext
@@ -59,7 +59,7 @@ Core package metadata:
 - Dependencies: Pretext, Pretext Skia rendering support, and SkiaSharp
 - Artifacts: `.nupkg`, `.snupkg`, XML documentation, and the root [README.md](README.md)
 
-[src/ProText.Core/ProText.Core.csproj](src/ProText.Core/ProText.Core.csproj) contains the reusable engine. [src/ProText/ProText.csproj](src/ProText/ProText.csproj) contains the Avalonia controls and theme resources. Samples, tests, and benchmark projects are explicitly marked as non-packable.
+[src/ProText.Core/ProText.Core.csproj](src/ProText.Core/ProText.Core.csproj) contains the reusable engine. [src/ProText.Avalonia/ProText.Avalonia.csproj](src/ProText.Avalonia/ProText.Avalonia.csproj) contains the Avalonia controls and theme resources. Samples, tests, and benchmark projects are explicitly marked as non-packable.
 
 ## Controls
 
@@ -220,7 +220,7 @@ To use the Fluent `ProTextBox` theme, merge the ProText theme after Avalonia's F
 <Application.Resources>
     <ResourceDictionary>
         <ResourceDictionary.MergedDictionaries>
-            <ResourceInclude Source="avares://ProText/Themes/Fluent.axaml" />
+            <ResourceInclude Source="avares://ProText.Avalonia/Themes/Fluent.axaml" />
         </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
 </Application.Resources>
@@ -361,7 +361,7 @@ Frame benchmarks use one explicit headless render tick plus `GetLastRenderedFram
 ## Project Layout
 
 - `src/ProText.Core` - framework-neutral rich content, layout, cache, font, selection geometry, and Skia renderer
-- `src/ProText` - Avalonia control library, themes, inline/style/font adapters, and custom draw operation host
+- `src/ProText.Avalonia` - Avalonia control library, themes, inline/style/font adapters, and custom draw operation host
 - `samples/ProText.Sample` - desktop comparison and stress sample app
 - `tests/ProText.Tests` - unit tests and Avalonia headless rendering tests
 - `benchmarks/ProText.Benchmarks` - TextBlock, layout, cache, and render benchmarks

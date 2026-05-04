@@ -2,7 +2,7 @@
 
 ## Project Mission
 
-Build `ProText`, a high-performance Avalonia text controls library powered by PretextSharp. `ProTextBlock` should preserve the public text-related `TextBlock` API surface as much as possible while keeping layout, measurement, caching, and rendering on the Pretext-powered path.
+Build `ProText.Avalonia`, a high-performance Avalonia text controls library powered by PretextSharp and `ProText.Core`. `ProTextBlock` should preserve the public text-related `TextBlock` API surface as much as possible while keeping layout, measurement, caching, and rendering on the Pretext-powered path.
 
 Also maintain `ProTextPresenter`, a reusable Pretext-powered presenter for custom editable text surfaces. It shares the same rich inline, layout, cache, and Skia rendering core as `ProTextBlock` and provides presenter-style caret, selection, preedit, password, hit-test, and measurement APIs.
 
@@ -79,5 +79,5 @@ dotnet run -c Release --project benchmarks/ProText.TextBoxBenchmarks/ProText.Tex
 - Prefer small, focused changes that preserve existing project style.
 - Do not modify the sibling PretextSharp repository unless the requested feature truly cannot be implemented through existing Pretext APIs and the user explicitly accepts that cross-repo change.
 - Keep performance-sensitive paths allocation-conscious, but prefer correctness for glyph/font fallback over drawing missing-glyph boxes.
-- Avoid sample-only fixes for control bugs. Fix root behavior in `src/ProText` first, then adjust samples/tests/docs.
+- Avoid sample-only fixes for control bugs. Fix root behavior in `src/ProText.Avalonia` first, then adjust samples/tests/docs.
 - Do not add unrelated refactors while fixing rendering, cache, or API issues.

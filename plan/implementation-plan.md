@@ -1,4 +1,4 @@
-# ProText Implementation Plan
+# ProText.Avalonia Implementation Plan
 
 ## 1. Repository Setup
 
@@ -7,7 +7,7 @@
 - Use central package management for Avalonia, PretextSharp, SkiaSharp, xUnit, Avalonia headless testing, and BenchmarkDotNet.
 - Enable nullable reference types and implicit usings.
 - Maintain `src/ProText.Core` as the reusable Pretext/Skia text engine with no Avalonia dependency.
-- Maintain `src/ProText` as the Avalonia controls, inline/style/font adapter, theme, and custom draw operation host.
+- Maintain `src/ProText.Avalonia` as the Avalonia controls, inline/style/font adapter, theme, and custom draw operation host.
 
 ## 2. Control Library
 

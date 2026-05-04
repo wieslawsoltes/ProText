@@ -1,8 +1,8 @@
-# ProText Technical Specification
+# ProText.Avalonia Technical Specification
 
 ## Scope
 
-ProText is a package of high-performance Avalonia text controls powered by PretextSharp. Its display control, `ProTextBlock`, preserves `TextBlock` source compatibility wherever Avalonia exposes public APIs. The implementation is split into `ProText.Core`, which contains the reusable Pretext/Skia text engine, and `ProText`, which adapts that engine to Avalonia controls, properties, inlines, brushes, fonts, and custom drawing.
+ProText.Avalonia is a package of high-performance Avalonia text controls powered by PretextSharp. Its display control, `ProTextBlock`, preserves `TextBlock` source compatibility wherever Avalonia exposes public APIs. The implementation is split into `ProText.Core`, which contains the reusable Pretext/Skia text engine, and `ProText.Avalonia`, which adapts that engine to Avalonia controls, properties, inlines, brushes, fonts, and custom drawing.
 
 ## Source Baseline
 
@@ -158,7 +158,7 @@ Known v1 limitations:
 ## Projects
 
 - `src/ProText.Core`: framework-neutral rich content, layout, cache, font fallback, selection geometry, and Skia rendering engine
-- `src/ProText`: Avalonia control library, theme resources, and Avalonia adapters over `ProText.Core`
+- `src/ProText.Avalonia`: Avalonia control library, theme resources, and Avalonia adapters over `ProText.Core`
 - `samples/ProText.Sample`: Avalonia desktop sample comparing `TextBlock`, `ProTextBlock`, inline content, and `ProTextPresenter`
 - `tests/ProText.Tests`: xUnit plus Avalonia headless render tests
 - `benchmarks/ProText.Benchmarks`: BenchmarkDotNet layout/render benchmarks
