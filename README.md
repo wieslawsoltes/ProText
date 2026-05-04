@@ -215,27 +215,118 @@ dotnet run --project samples/ProText.Sample/ProText.Sample.csproj
 
 ## Performance Snapshot
 
-The TextBox benchmark suite applies Avalonia's Fluent TextBox theme and the ProText Fluent theme before measuring. Setup validates that Avalonia `TextPresenter` and ProText `ProTextPresenter` are present in the visual tree. Layout benchmarks alternate width constraints to avoid cached no-op timings, and frame benchmarks use one explicit headless render tick plus `GetLastRenderedFrame()` rather than `CaptureRenderedFrame()`'s stabilization loop.
+Results below were generated on 2026-05-04 with BenchmarkDotNet `0.15.8` on Apple M3 Pro, macOS Tahoe `26.4.1`, .NET SDK `10.0.201`, and .NET runtime `10.0.5`. `ProText.Benchmarks` and `ProText.InlineBenchmarks` use BenchmarkDotNet's default job; `ProText.PresenterBenchmarks` and `ProText.TextBoxBenchmarks` use `ShortRun` as configured in the benchmark projects.
 
-Command used for the latest documented TextBox run:
+Commands used for the documented run:
 
 ```bash
+dotnet run -c Release --project benchmarks/ProText.Benchmarks/ProText.Benchmarks.csproj -- --filter "*"
+dotnet run -c Release --project benchmarks/ProText.InlineBenchmarks/ProText.InlineBenchmarks.csproj -- --filter "*"
+dotnet run -c Release --project benchmarks/ProText.PresenterBenchmarks/ProText.PresenterBenchmarks.csproj -- --filter "*"
 dotnet run -c Release --project benchmarks/ProText.TextBoxBenchmarks/ProText.TextBoxBenchmarks.csproj -- --filter "*"
 ```
 
-Environment: Apple M3 Pro, .NET `10.0.5`, BenchmarkDotNet `0.15.8`, ShortRun job.
+### TextBlock Layout And Cache
 
-| Scenario | Avalonia TextBox | ProTextBox | Result |
-| --- | ---: | ---: | ---: |
-| Measure, width 220 | 1.778 ms, 285.7 KB | 51.43 us, 174.84 KB | 34.6x faster, 39% less memory |
-| Measure, width 440 | 1.322 ms, 215.05 KB | 42.78 us, 121.86 KB | 30.9x faster, 43% less memory |
-| Measure, width 880 | 1.307 ms, 185.08 KB | 37.12 us, 99.11 KB | 35.2x faster, 46% less memory |
-| Selected measure, width 220 | 2.237 ms, 285.7 KB | 58.54 us, 174.84 KB | 38.2x faster, 39% less memory |
-| Selected measure, width 440 | 1.607 ms, 215.05 KB | 40.34 us, 121.86 KB | 39.8x faster, 43% less memory |
-| Selected measure, width 880 | 1.446 ms, 185.08 KB | 35.49 us, 99.11 KB | 40.7x faster, 46% less memory |
-| Invalidated frame, single render tick | 306.3 us, 9.09 KB | 318.5 us, 6.24 KB | 4% slower, 31% less memory |
+| Method | Width | Mean | Ratio | Allocated | Alloc Ratio |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| AvaloniaTextBlockMeasure | 160 | 757,121.0 ns | 1.000 | 229,608 B | 1.000 |
+| ProTextBlockGlobalCacheMeasure | 160 | 3,720.3 ns | 0.005 | 49,312 B | 0.215 |
+| ProTextBlockLocalCacheMeasure | 160 | 3,723.5 ns | 0.005 | 49,312 B | 0.215 |
+| AvaloniaRichTextBlockMeasure | 160 | 51,570.5 ns | 0.068 | 22,328 B | 0.097 |
+| ProTextBlockRichMeasure | 160 | 4,796.9 ns | 0.006 | 32,327 B | 0.141 |
+| PretextColdPrepare | 160 | 480,168.2 ns | 0.634 | 1,295,812 B | 5.644 |
+| PretextMeasureLineStats | 160 | 950.9 ns | 0.001 | 88 B | 0.000 |
+| AvaloniaTextBlockMeasure | 320 | 676,603.0 ns | 1.000 | 157,456 B | 1.000 |
+| ProTextBlockGlobalCacheMeasure | 320 | 3,782.3 ns | 0.006 | 49,312 B | 0.313 |
+| ProTextBlockLocalCacheMeasure | 320 | 3,791.4 ns | 0.006 | 49,312 B | 0.313 |
+| AvaloniaRichTextBlockMeasure | 320 | 45,619.8 ns | 0.067 | 15,840 B | 0.101 |
+| ProTextBlockRichMeasure | 320 | 4,775.3 ns | 0.007 | 32,327 B | 0.205 |
+| PretextColdPrepare | 320 | 478,321.7 ns | 0.707 | 1,295,812 B | 8.230 |
+| PretextMeasureLineStats | 320 | 851.7 ns | 0.001 | 88 B | 0.001 |
+| AvaloniaTextBlockMeasure | 640 | 637,930.0 ns | 1.000 | 115,864 B | 1.000 |
+| ProTextBlockGlobalCacheMeasure | 640 | 3,782.7 ns | 0.006 | 49,312 B | 0.426 |
+| ProTextBlockLocalCacheMeasure | 640 | 3,801.7 ns | 0.006 | 49,312 B | 0.426 |
+| AvaloniaRichTextBlockMeasure | 640 | 44,579.6 ns | 0.070 | 14,496 B | 0.125 |
+| ProTextBlockRichMeasure | 640 | 4,734.0 ns | 0.007 | 32,327 B | 0.279 |
+| PretextColdPrepare | 640 | 473,190.0 ns | 0.742 | 1,295,812 B | 11.184 |
+| PretextMeasureLineStats | 640 | 1,024.3 ns | 0.002 | 88 B | 0.001 |
 
-Frame decomposition from the same run shows fixed headless rendering cost separately: `EmptyWindowFrame` is 58.7 us and `ProTextBoxCaptureOnly` is 47.5 us with about 0.52 KB allocated. The invalidated frame result is therefore dominated by Avalonia's retained renderer and headless frame capture cost, while ProTextBox measurement remains substantially faster and lower allocation.
+### TextBlock Headless Render
+
+| Method | Mean | Ratio | Allocated | Alloc Ratio |
+| --- | ---: | ---: | ---: | ---: |
+| AvaloniaTextBlockFrame | 62.52 us | 1.00 | 655 B | 1.00 |
+| ProTextBlockFrame | 62.77 us | 1.00 | 656 B | 1.00 |
+
+### Inline Layout
+
+| Method | Width | Mean | Ratio | Allocated | Alloc Ratio |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| AvaloniaTextBlockInlineMeasure | 180 | 466,180.91 ns | 1.000 | 177,808 B | 1.00 |
+| ProTextBlockInlineMeasure | 180 | 57,538.85 ns | 0.123 | 295,863 B | 1.66 |
+| ProTextPresenterInlineMeasure | 180 | 79.03 ns | 0.000 | - | 0.00 |
+| AvaloniaTextBlockInlineMeasure | 360 | 438,062.62 ns | 1.000 | 148,632 B | 1.00 |
+| ProTextBlockInlineMeasure | 360 | 58,334.96 ns | 0.133 | 295,863 B | 1.99 |
+| ProTextPresenterInlineMeasure | 360 | 78.16 ns | 0.000 | - | 0.00 |
+| AvaloniaTextBlockInlineMeasure | 720 | 426,446.30 ns | 1.000 | 143,296 B | 1.00 |
+| ProTextBlockInlineMeasure | 720 | 57,865.73 ns | 0.136 | 295,863 B | 2.06 |
+| ProTextPresenterInlineMeasure | 720 | 80.31 ns | 0.000 | - | 0.00 |
+
+### Presenter Operations
+
+| Method | Width | Mean | Ratio | Allocated |
+| --- | ---: | ---: | ---: | ---: |
+| PresenterMeasure | 240 | 81.80 ns | 1.00 | - |
+| PresenterCaretBounds | 240 | 314.18 ns | 3.84 | 128 B |
+| PresenterHitTest | 240 | 4,723.75 ns | 57.75 | 1,912 B |
+| EmptyWindowFrame | 240 | 50,813.18 ns | 621.17 | 606 B |
+| PresenterPlainFrame | 240 | 340,712.50 ns | 4,165.10 | 7,012 B |
+| PresenterSelectedFrame | 240 | 343,965.24 ns | 4,204.86 | 7,026 B |
+| PresenterMeasure | 480 | 80.45 ns | 1.00 | - |
+| PresenterCaretBounds | 480 | 320.81 ns | 3.99 | 128 B |
+| PresenterHitTest | 480 | 8,654.58 ns | 107.58 | 3,456 B |
+| EmptyWindowFrame | 480 | 50,954.18 ns | 633.37 | 606 B |
+| PresenterPlainFrame | 480 | 339,838.00 ns | 4,224.26 | 7,010 B |
+| PresenterSelectedFrame | 480 | 341,366.86 ns | 4,243.27 | 7,010 B |
+| PresenterMeasure | 960 | 80.63 ns | 1.00 | - |
+| PresenterCaretBounds | 960 | 4,709.12 ns | 58.40 | 1,128 B |
+| PresenterHitTest | 960 | 17,238.17 ns | 213.78 | 6,800 B |
+| EmptyWindowFrame | 960 | 50,832.60 ns | 630.42 | 606 B |
+| PresenterPlainFrame | 960 | 350,925.74 ns | 4,352.12 | 7,000 B |
+| PresenterSelectedFrame | 960 | 340,326.70 ns | 4,220.67 | 7,012 B |
+
+### TextBox Layout
+
+The TextBox benchmark suite applies Avalonia's Fluent TextBox theme and the ProText Fluent theme before measuring. Setup validates that Avalonia `TextPresenter` and ProText `ProTextPresenter` are present in the visual tree. Layout benchmarks alternate width constraints to avoid cached no-op timings.
+
+| Method | Width | Mean | Ratio | Allocated | Alloc Ratio |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| AvaloniaTextBoxMeasure | 220 | 1,291.90 us | 1.00 | 285.70 KB | 1.00 |
+| ProTextBoxMeasure | 220 | 46.83 us | 0.04 | 174.84 KB | 0.61 |
+| AvaloniaTextBoxSelectedMeasure | 220 | 1,316.04 us | 1.02 | 285.70 KB | 1.00 |
+| ProTextBoxSelectedMeasure | 220 | 46.56 us | 0.04 | 174.84 KB | 0.61 |
+| AvaloniaTextBoxMeasure | 440 | 1,238.14 us | 1.00 | 215.05 KB | 1.00 |
+| ProTextBoxMeasure | 440 | 37.33 us | 0.03 | 121.86 KB | 0.57 |
+| AvaloniaTextBoxSelectedMeasure | 440 | 1,218.57 us | 0.98 | 215.05 KB | 1.00 |
+| ProTextBoxSelectedMeasure | 440 | 37.46 us | 0.03 | 121.86 KB | 0.57 |
+| AvaloniaTextBoxMeasure | 880 | 1,169.68 us | 1.00 | 185.08 KB | 1.00 |
+| ProTextBoxMeasure | 880 | 32.94 us | 0.03 | 99.11 KB | 0.54 |
+| AvaloniaTextBoxSelectedMeasure | 880 | 1,171.24 us | 1.00 | 185.08 KB | 1.00 |
+| ProTextBoxSelectedMeasure | 880 | 32.52 us | 0.03 | 99.11 KB | 0.54 |
+
+### TextBox Headless Render
+
+Frame benchmarks use one explicit headless render tick plus `GetLastRenderedFrame()` rather than `CaptureRenderedFrame()`'s stabilization loop.
+
+| Method | Mean | Ratio | Allocated | Alloc Ratio |
+| --- | ---: | ---: | ---: | ---: |
+| EmptyWindowFrame | 44.59 us | 0.10 | 533 B | 0.05 |
+| AvaloniaTextBoxCaptureOnly | 161.11 us | 0.35 | 1,068 B | 0.11 |
+| ProTextBoxCaptureOnly | 128.78 us | 0.28 | 908 B | 0.09 |
+| AvaloniaTextBoxFrame | 460.62 us | 1.00 | 9,993 B | 1.00 |
+| ProTextBoxFrame | 488.39 us | 1.06 | 7,123 B | 0.71 |
+| DirectProTextPresenterFrame | 460.73 us | 1.00 | 7,392 B | 0.74 |
 
 ## Project Layout
 
