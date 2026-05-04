@@ -6,6 +6,8 @@ using Avalonia.Headless.XUnit;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.VisualTree;
+using ProText;
 using ProTextBoxControl = ProText.ProTextBox;
 
 namespace ProText.Tests;
@@ -30,12 +32,54 @@ public sealed class AvaloniaAdaptedTextBoxTests
     }
 
     [AvaloniaFact]
+    public void Shift_Right_Extends_Selection_From_Caret()
+    {
+        var target = CreateTextBox("1234");
+        target.CaretIndex = 1;
+
+        RaiseKeyEvent(target, Key.Right, KeyModifiers.Shift);
+
+        Assert.Equal(1, target.SelectionStart);
+        Assert.Equal(2, target.SelectionEnd);
+        Assert.Equal(2, target.CaretIndex);
+    }
+
+    [AvaloniaFact]
+    public void Control_Shift_Right_Extends_Selection_To_Next_Word()
+    {
+        var target = CreateTextBox("First Second Third");
+        target.CaretIndex = 0;
+
+        RaiseKeyEvent(target, Key.Right, KeyModifiers.Control | KeyModifiers.Shift);
+
+        Assert.Equal(0, target.SelectionStart);
+        Assert.Equal(6, target.SelectionEnd);
+        Assert.Equal(6, target.CaretIndex);
+    }
+
+    [AvaloniaFact]
+    public void Down_Key_Moves_Caret_To_Next_Rendered_Line()
+    {
+        var target = CreateTextBox("one\ntwo\nthree");
+        target.Width = 260;
+        target.Height = 90;
+        target.CaretIndex = 1;
+        var window = new Window { Width = 300, Height = 120, Content = target };
+        window.Show();
+
+        RaiseKeyEvent(target, Key.Down, KeyModifiers.Shift);
+
+        Assert.True(target.CaretIndex > 1);
+        Assert.Equal(1, target.SelectionStart);
+        Assert.Equal(target.CaretIndex, target.SelectionEnd);
+    }
+
+    [AvaloniaFact]
     public void Press_Ctrl_A_Select_All_Text()
     {
         var target = CreateTextBox("1234");
 
         RaiseKeyEvent(target, Key.A, KeyModifiers.Control);
-
         Assert.Equal(0, target.SelectionStart);
         Assert.Equal(4, target.SelectionEnd);
     }
@@ -46,9 +90,44 @@ public sealed class AvaloniaAdaptedTextBoxTests
         var target = CreateTextBox(null);
 
         RaiseKeyEvent(target, Key.A, KeyModifiers.Control);
-
         Assert.Equal(0, target.SelectionStart);
         Assert.Equal(0, target.SelectionEnd);
+    }
+
+    [AvaloniaFact]
+    public void ClearSelection_Collapses_Selection_To_Caret()
+    {
+        var target = CreateTextBox("012345");
+        target.SelectionStart = 1;
+        target.SelectionEnd = 4;
+        target.CaretIndex = 4;
+
+        target.ClearSelection();
+
+        Assert.Equal(4, target.SelectionStart);
+        Assert.Equal(4, target.SelectionEnd);
+        Assert.Equal(4, target.CaretIndex);
+    }
+
+    [AvaloniaFact]
+    public void Can_Properties_Update_When_Selection_Changes()
+    {
+        var target = CreateTextBox("012345");
+
+        Assert.False(target.CanCopy);
+        Assert.False(target.CanCut);
+        Assert.True(target.CanPaste);
+
+        target.SelectionStart = 1;
+        target.SelectionEnd = 4;
+
+        Assert.True(target.CanCopy);
+        Assert.True(target.CanCut);
+
+        target.PasswordChar = '*';
+
+        Assert.False(target.CanCopy);
+        Assert.False(target.CanCut);
     }
 
     [AvaloniaFact]
@@ -57,8 +136,37 @@ public sealed class AvaloniaAdaptedTextBoxTests
         var target = CreateTextBox("1234");
 
         RaiseKeyEvent(target, Key.Z, KeyModifiers.Control);
-
         Assert.Equal("1234", target.Text);
+    }
+
+    [AvaloniaFact]
+    public void IsUndoEnabled_Disables_Edit_History()
+    {
+        var target = CreateTextBox("0123");
+        target.IsUndoEnabled = false;
+        target.SelectionStart = 1;
+        target.SelectionEnd = 3;
+
+        RaiseTextEvent(target, "A");
+        RaiseKeyEvent(target, Key.Z, KeyModifiers.Control);
+
+        Assert.Equal("0A3", target.Text);
+        Assert.False(target.CanUndo);
+    }
+
+    [AvaloniaFact]
+    public void TextChanging_And_TextChanged_Fire_For_Text_Input()
+    {
+        var target = CreateTextBox("0123");
+        var changing = 0;
+        var changed = 0;
+        target.TextChanging += (_, _) => changing++;
+        target.TextChanged += (_, _) => changed++;
+
+        RaiseTextEvent(target, "A");
+
+        Assert.Equal(1, changing);
+        Assert.Equal(1, changed);
     }
 
     [AvaloniaFact]
@@ -265,6 +373,42 @@ public sealed class AvaloniaAdaptedTextBoxTests
         Assert.False(target1.RevealPassword);
     }
 
+    [AvaloniaFact]
+    public void Mouse_Drag_Selects_Text()
+    {
+        var target = CreateTextBox("abcdef");
+        target.Width = 260;
+        target.Height = 60;
+        var window = new Window { Width = 300, Height = 90, Content = target };
+        window.Show();
+
+        var presenter = target.GetVisualDescendants().OfType<ProTextPresenter>().Single();
+        var start = ToWindowPoint(presenter, window, presenter.GetCaretBounds(0));
+        var end = ToWindowPoint(presenter, window, presenter.GetCaretBounds(4));
+
+        window.MouseDown(start, MouseButton.Left, RawInputModifiers.None);
+        window.MouseMove(end, RawInputModifiers.LeftMouseButton);
+        window.MouseUp(end, MouseButton.Left, RawInputModifiers.None);
+
+        var selectionStart = Math.Min(target.SelectionStart, target.SelectionEnd);
+        var selectionEnd = Math.Max(target.SelectionStart, target.SelectionEnd);
+        Assert.Equal(0, selectionStart);
+        Assert.True(selectionEnd >= 3);
+    }
+
+    [AvaloniaFact]
+    public void GetLineCount_Uses_ProTextPresenter_Layout()
+    {
+        var target = CreateTextBox("one\ntwo\nthree");
+        target.AcceptsReturn = true;
+        target.Width = 260;
+        target.Height = 90;
+        var window = new Window { Width = 300, Height = 120, Content = target };
+        window.Show();
+
+        Assert.Equal(3, target.GetLineCount());
+    }
+
     [AvaloniaTheory]
     [InlineData("abc", "d", 3, 0, 0, "abc")]
     [InlineData("abc", "dd", 4, 3, 3, "abcd")]
@@ -428,6 +572,12 @@ public sealed class AvaloniaAdaptedTextBoxTests
             RoutedEvent = InputElement.TextInputEvent,
             Text = text
         });
+    }
+
+    private static Point ToWindowPoint(ProTextPresenter presenter, Window window, Rect caretBounds)
+    {
+        var point = new Point(caretBounds.X + 1, caretBounds.Y + Math.Max(1, caretBounds.Height / 2));
+        return presenter.TranslatePoint(point, window) ?? point;
     }
 
     private sealed class ActionObserver<T>(Action<T> onNext) : IObserver<T>
