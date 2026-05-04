@@ -9,6 +9,7 @@ using Avalonia.Media.TextFormatting;
 using Avalonia.Metadata;
 using Avalonia.Threading;
 using Pretext;
+using ProText.Core;
 using ProText.Internal;
 
 namespace ProText;
@@ -679,11 +680,21 @@ public class ProTextPresenter : Control
         }
 
         var snapshot = GetLayoutSnapshot(content, Bounds.Width > 0 ? Bounds.Width : double.PositiveInfinity);
-        var bounds = GetCaretBounds(snapshot, Math.Clamp(GetEffectiveCaretIndex(), 0, content.Text.Length));
+        var bounds = ProTextAvaloniaAdapter.ToAvalonia(ProTextLayoutServices.GetCaretBounds(
+            snapshot,
+            Math.Clamp(GetEffectiveCaretIndex(), 0, content.Text.Length),
+            Bounds.Width,
+            ProTextAvaloniaAdapter.ToCore(TextAlignment),
+            ProTextAvaloniaAdapter.ToCore(FlowDirection)));
         var y = direction == LogicalDirection.Forward
             ? bounds.Y + snapshot.LineHeight + snapshot.LineHeight / 2
             : bounds.Y - snapshot.LineHeight / 2;
-        var index = GetCharacterIndex(snapshot, new Point(bounds.X, y));
+        var index = ProTextLayoutServices.GetCharacterIndex(
+            snapshot,
+            new ProTextPoint(bounds.X, y),
+            Bounds.Width,
+            ProTextAvaloniaAdapter.ToCore(TextAlignment),
+            ProTextAvaloniaAdapter.ToCore(FlowDirection));
         MoveCaretToTextPosition(index);
     }
 
@@ -698,7 +709,12 @@ public class ProTextPresenter : Control
         }
 
         var snapshot = GetLayoutSnapshot(content, Bounds.Width > 0 ? Bounds.Width : double.PositiveInfinity);
-        return GetCharacterIndex(snapshot, point);
+        return ProTextLayoutServices.GetCharacterIndex(
+            snapshot,
+            ProTextAvaloniaAdapter.ToCore(point),
+            Bounds.Width,
+            ProTextAvaloniaAdapter.ToCore(TextAlignment),
+            ProTextAvaloniaAdapter.ToCore(FlowDirection));
     }
 
     /// <summary>
@@ -712,7 +728,12 @@ public class ProTextPresenter : Control
         }
 
         var snapshot = GetLayoutSnapshot(content, Bounds.Width > 0 ? Bounds.Width : double.PositiveInfinity);
-        return GetCaretBounds(snapshot, Math.Clamp(textPosition, 0, content.Text.Length));
+        return ProTextAvaloniaAdapter.ToAvalonia(ProTextLayoutServices.GetCaretBounds(
+            snapshot,
+            Math.Clamp(textPosition, 0, content.Text.Length),
+            Bounds.Width,
+            ProTextAvaloniaAdapter.ToCore(TextAlignment),
+            ProTextAvaloniaAdapter.ToCore(FlowDirection)));
     }
 
     /// <summary>
@@ -725,7 +746,7 @@ public class ProTextPresenter : Control
             return default;
         }
 
-        return GetLayoutSnapshot(content, availableWidth).Size;
+        return ProTextAvaloniaAdapter.ToAvalonia(GetLayoutSnapshot(content, availableWidth).Size);
     }
 
     /// <summary>
@@ -758,8 +779,7 @@ public class ProTextPresenter : Control
             return default;
         }
 
-        lineIndex = Math.Clamp(lineIndex, 0, snapshot.LineCount - 1);
-        return new Rect(0, lineIndex * snapshot.LineHeight, snapshot.Width, snapshot.LineHeight);
+        return ProTextAvaloniaAdapter.ToAvalonia(ProTextLayoutServices.GetLineBounds(snapshot, lineIndex));
     }
 
     /// <inheritdoc />
@@ -777,7 +797,7 @@ public class ProTextPresenter : Control
             UpdateCaretBounds(snapshot, content);
         }
 
-        return snapshot.Size;
+        return ProTextAvaloniaAdapter.ToAvalonia(snapshot.Size);
     }
 
     /// <inheritdoc />
@@ -1053,8 +1073,8 @@ public class ProTextPresenter : Control
     {
         var maxWidth = ResolveMaxWidth(availableWidth);
         var lineHeight = GetEffectiveLineHeight(content);
-        var textWrapping = TextWrapping;
-        var textTrimming = TextTrimming;
+        var textWrapping = ProTextAvaloniaAdapter.ToCore(TextWrapping);
+        var textTrimming = ProTextAvaloniaAdapter.ToCore(TextTrimming);
 
         if (_layoutSnapshot is { } snapshot && snapshot.Matches(content, maxWidth, lineHeight, maxLines: 0, textWrapping, textTrimming))
         {
@@ -1117,24 +1137,15 @@ public class ProTextPresenter : Control
 
     private double ResolveMaxWidth(double availableWidth)
     {
-        if ((TextWrapping == TextWrapping.NoWrap && ReferenceEquals(TextTrimming, TextTrimming.None)) || double.IsInfinity(availableWidth))
-        {
-            return double.PositiveInfinity;
-        }
-
-        if (double.IsNaN(availableWidth))
-        {
-            return 0;
-        }
-
-        return Math.Max(0, availableWidth);
+        return ProTextLayoutServices.ResolveMaxWidth(
+            availableWidth,
+            ProTextAvaloniaAdapter.ToCore(TextWrapping),
+            ProTextAvaloniaAdapter.ToCore(TextTrimming));
     }
 
     private double GetEffectiveLineHeight(ProTextRichContent content)
     {
-        var fontSize = Math.Max(FontSize, content.MaxFontSize);
-        var baseLineHeight = double.IsNaN(LineHeight) ? fontSize * PretextLineHeightMultiplier : LineHeight;
-        return Math.Max(0, baseLineHeight + LineSpacing);
+        return ProTextLayoutServices.GetEffectiveLineHeight(FontSize, content.MaxFontSize, LineHeight, LineSpacing, PretextLineHeightMultiplier);
     }
 
     private int GetCurrentTextLength()
@@ -1160,7 +1171,12 @@ public class ProTextPresenter : Control
 
     private void UpdateCaretBounds(ProTextLayoutSnapshot snapshot, ProTextRichContent content)
     {
-        var bounds = GetCaretBounds(snapshot, Math.Clamp(GetEffectiveCaretIndex(), 0, content.Text.Length));
+        var bounds = ProTextAvaloniaAdapter.ToAvalonia(ProTextLayoutServices.GetCaretBounds(
+            snapshot,
+            Math.Clamp(GetEffectiveCaretIndex(), 0, content.Text.Length),
+            Bounds.Width,
+            ProTextAvaloniaAdapter.ToCore(TextAlignment),
+            ProTextAvaloniaAdapter.ToCore(FlowDirection)));
 
         if (bounds != _caretBounds)
         {
@@ -1176,7 +1192,12 @@ public class ProTextPresenter : Control
             return;
         }
 
-        var bounds = GetCaretBounds(snapshot, Math.Clamp(GetEffectiveCaretIndex(), 0, content.Text.Length));
+        var bounds = ProTextAvaloniaAdapter.ToAvalonia(ProTextLayoutServices.GetCaretBounds(
+            snapshot,
+            Math.Clamp(GetEffectiveCaretIndex(), 0, content.Text.Length),
+            Bounds.Width,
+            ProTextAvaloniaAdapter.ToCore(TextAlignment),
+            ProTextAvaloniaAdapter.ToCore(FlowDirection)));
         var brush = CaretBrush ?? Foreground ?? Brushes.Black;
         var x = Math.Floor(bounds.X) + 0.5;
         context.DrawLine(new Pen(brush, 1), new Point(x, bounds.Top), new Point(x, bounds.Bottom));
@@ -1271,7 +1292,7 @@ public class ProTextPresenter : Control
         if (!ReferenceEquals(_selectionBrushSnapshotSource, brush))
         {
             _selectionBrushSnapshotSource = brush;
-            _selectionBrushSnapshot = ProTextInlineBuilder.SnapshotBrush(brush);
+            _selectionBrushSnapshot = ProTextAvaloniaAdapter.SnapshotBrush(brush);
         }
 
         return _selectionBrushSnapshot;
@@ -1291,7 +1312,7 @@ public class ProTextPresenter : Control
         if (!ReferenceEquals(_selectionForegroundSnapshotSource, brush))
         {
             _selectionForegroundSnapshotSource = brush;
-            _selectionForegroundSnapshot = ProTextInlineBuilder.SnapshotBrush(brush);
+            _selectionForegroundSnapshot = ProTextAvaloniaAdapter.SnapshotBrush(brush);
         }
 
         return _selectionForegroundSnapshot;
@@ -1326,167 +1347,13 @@ public class ProTextPresenter : Control
 
     private ProTextSelectionRect[] BuildSelectionRects(ProTextLayoutSnapshot snapshot, int selectionStart, int selectionEnd)
     {
-        var rects = new List<ProTextSelectionRect>();
-
-        for (var lineIndex = 0; lineIndex < snapshot.Lines.Count; lineIndex++)
-        {
-            var line = snapshot.Lines[lineIndex];
-
-            if (line.Fragments.Count == 0 || selectionEnd <= line.StartTextIndex || selectionStart >= line.EndTextIndex)
-            {
-                continue;
-            }
-
-            var start = Math.Max(selectionStart, line.StartTextIndex);
-            var end = Math.Min(selectionEnd, line.EndTextIndex);
-            var x1 = GetXForTextIndex(snapshot, line, start);
-            var x2 = GetXForTextIndex(snapshot, line, end);
-
-            if (x2 < x1)
-            {
-                (x1, x2) = (x2, x1);
-            }
-
-            rects.Add(new ProTextSelectionRect(lineIndex, new Rect(x1, lineIndex * snapshot.LineHeight, Math.Max(1, x2 - x1), snapshot.LineHeight)));
-        }
-
-        return rects.Count == 0 ? [] : rects.ToArray();
-    }
-
-    private int GetCharacterIndex(ProTextLayoutSnapshot snapshot, Point point)
-    {
-        if (snapshot.Lines.Count == 0)
-        {
-            return 0;
-        }
-
-        var lineIndex = Math.Clamp((int)Math.Floor(point.Y / Math.Max(1, snapshot.LineHeight)), 0, snapshot.Lines.Count - 1);
-        var line = snapshot.Lines[lineIndex];
-
-        if (line.Fragments.Count == 0)
-        {
-            return line.StartTextIndex;
-        }
-
-        var lineX = GetAlignedX(snapshot, line);
-
-        if (point.X <= lineX)
-        {
-            return line.StartTextIndex;
-        }
-
-        foreach (var fragment in line.Fragments)
-        {
-            var fragmentX = lineX + fragment.X;
-
-            if (point.X > fragmentX + fragment.Width)
-            {
-                continue;
-            }
-
-            return GetCharacterIndexInFragment(fragment, point.X - fragmentX);
-        }
-
-        return line.EndTextIndex;
-    }
-
-    private static int GetCharacterIndexInFragment(ProTextLayoutFragment fragment, double x)
-    {
-        var currentX = 0d;
-        var lastIndex = fragment.TextStart;
-
-        foreach (var grapheme in ProTextFontResolver.EnumerateGraphemes(fragment.Text))
-        {
-            var width = ProTextRenderFontCache.MeasureText(grapheme, fragment.Style) + fragment.Style.LetterSpacing;
-            var nextIndex = lastIndex + grapheme.Length;
-
-            if (x <= currentX + width / 2)
-            {
-                return lastIndex;
-            }
-
-            currentX += width;
-            lastIndex = nextIndex;
-        }
-
-        return fragment.TextEnd;
-    }
-
-    private Rect GetCaretBounds(ProTextLayoutSnapshot snapshot, int textPosition)
-    {
-        if (snapshot.Lines.Count == 0)
-        {
-            return new Rect(0, 0, 0, snapshot.LineHeight);
-        }
-
-        for (var lineIndex = 0; lineIndex < snapshot.Lines.Count; lineIndex++)
-        {
-            var line = snapshot.Lines[lineIndex];
-
-            if (textPosition < line.StartTextIndex || textPosition > line.EndTextIndex)
-            {
-                continue;
-            }
-
-            return new Rect(GetXForTextIndex(snapshot, line, textPosition), lineIndex * snapshot.LineHeight, 0, snapshot.LineHeight);
-        }
-
-        var lastLine = snapshot.Lines[^1];
-        return new Rect(GetXForTextIndex(snapshot, lastLine, lastLine.EndTextIndex), (snapshot.Lines.Count - 1) * snapshot.LineHeight, 0, snapshot.LineHeight);
-    }
-
-    private double GetXForTextIndex(ProTextLayoutSnapshot snapshot, ProTextLayoutLine line, int textPosition)
-    {
-        var x = GetAlignedX(snapshot, line);
-
-        foreach (var fragment in line.Fragments)
-        {
-            if (textPosition <= fragment.TextStart)
-            {
-                return x + fragment.X;
-            }
-
-            if (textPosition <= fragment.TextEnd)
-            {
-                var localLength = Math.Clamp(textPosition - fragment.TextStart, 0, fragment.Text.Length);
-
-                if (localLength == fragment.Text.Length)
-                {
-                    return x + fragment.X + fragment.Width;
-                }
-
-                var prefix = fragment.Text[..localLength];
-                return x + fragment.X + ProTextRenderFontCache.MeasureText(prefix, fragment.Style);
-            }
-        }
-
-        return x + line.Width;
-    }
-
-    private double GetAlignedX(ProTextLayoutSnapshot snapshot, ProTextLayoutLine line)
-    {
-        var extra = Math.Max(0, Bounds.Width - line.Width);
-
-        return ResolveAlignment() switch
-        {
-            ResolvedTextAlignment.Center => extra / 2,
-            ResolvedTextAlignment.Right => extra,
-            _ => 0,
-        };
-    }
-
-    private ResolvedTextAlignment ResolveAlignment()
-    {
-        return TextAlignment switch
-        {
-            TextAlignment.Center => ResolvedTextAlignment.Center,
-            TextAlignment.Right => ResolvedTextAlignment.Right,
-            TextAlignment.End when FlowDirection == FlowDirection.LeftToRight => ResolvedTextAlignment.Right,
-            TextAlignment.End => ResolvedTextAlignment.Left,
-            TextAlignment.Start when FlowDirection == FlowDirection.RightToLeft => ResolvedTextAlignment.Right,
-            TextAlignment.DetectFromContent when FlowDirection == FlowDirection.RightToLeft => ResolvedTextAlignment.Right,
-            _ => ResolvedTextAlignment.Left,
-        };
+        return ProTextLayoutServices.GetSelectionRects(
+            snapshot,
+            selectionStart,
+            selectionEnd,
+            Bounds.Width,
+            ProTextAvaloniaAdapter.ToCore(TextAlignment),
+            ProTextAvaloniaAdapter.ToCore(FlowDirection));
     }
 
     private void EnsureCaretTimer()
@@ -1529,10 +1396,4 @@ public class ProTextPresenter : Control
         InvalidateVisual();
     }
 
-    private enum ResolvedTextAlignment
-    {
-        Left,
-        Center,
-        Right,
-    }
 }

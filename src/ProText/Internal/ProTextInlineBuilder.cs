@@ -1,5 +1,6 @@
 using Avalonia.Controls.Documents;
 using Avalonia.Media;
+using ProText.Core;
 
 namespace ProText.Internal;
 
@@ -17,14 +18,14 @@ internal static class ProTextInlineBuilder
         double letterSpacing)
     {
         return new ProTextRichStyle(
-            fontFamily,
+            ProTextAvaloniaAdapter.GetPrimaryFamilyName(fontFamily),
             fontSize,
-            fontStyle,
-            fontWeight,
-            fontStretch,
-            SnapshotBrush(foreground),
-            SnapshotDecorations(textDecorations),
-            fontFeatures,
+            ProTextAvaloniaAdapter.ToCore(fontStyle),
+            (int)fontWeight,
+            (int)fontStretch,
+            ProTextAvaloniaAdapter.SnapshotBrush(foreground),
+            ProTextAvaloniaAdapter.SnapshotDecorations(textDecorations),
+            ProTextAvaloniaAdapter.CreateFontFeaturesFingerprint(fontFeatures),
             letterSpacing);
     }
 
@@ -87,67 +88,14 @@ internal static class ProTextInlineBuilder
     public static ProTextRichStyle ApplyInlineStyle(Inline inline, ProTextRichStyle parent)
     {
         return new ProTextRichStyle(
-            inline.IsSet(TextElement.FontFamilyProperty) ? inline.FontFamily : parent.FontFamily,
+            inline.IsSet(TextElement.FontFamilyProperty) ? ProTextAvaloniaAdapter.GetPrimaryFamilyName(inline.FontFamily) : parent.FontFamily,
             inline.IsSet(TextElement.FontSizeProperty) ? inline.FontSize : parent.FontSize,
-            inline.IsSet(TextElement.FontStyleProperty) ? inline.FontStyle : parent.FontStyle,
-            inline.IsSet(TextElement.FontWeightProperty) ? inline.FontWeight : parent.FontWeight,
-            inline.IsSet(TextElement.FontStretchProperty) ? inline.FontStretch : parent.FontStretch,
-            inline.IsSet(TextElement.ForegroundProperty) ? SnapshotBrush(inline.Foreground) : parent.Foreground,
-            inline.IsSet(Inline.TextDecorationsProperty) ? SnapshotDecorations(inline.TextDecorations) : parent.TextDecorations,
-            inline.IsSet(TextElement.FontFeaturesProperty) ? inline.FontFeatures : parent.FontFeatures,
+            inline.IsSet(TextElement.FontStyleProperty) ? ProTextAvaloniaAdapter.ToCore(inline.FontStyle) : parent.FontStyle,
+            inline.IsSet(TextElement.FontWeightProperty) ? (int)inline.FontWeight : parent.FontWeight,
+            inline.IsSet(TextElement.FontStretchProperty) ? (int)inline.FontStretch : parent.FontStretch,
+            inline.IsSet(TextElement.ForegroundProperty) ? ProTextAvaloniaAdapter.SnapshotBrush(inline.Foreground) : parent.Foreground,
+            inline.IsSet(Inline.TextDecorationsProperty) ? ProTextAvaloniaAdapter.SnapshotDecorations(inline.TextDecorations) : parent.TextDecorations,
+            inline.IsSet(TextElement.FontFeaturesProperty) ? ProTextAvaloniaAdapter.CreateFontFeaturesFingerprint(inline.FontFeatures) : parent.FontFeaturesFingerprint,
             inline.IsSet(TextElement.LetterSpacingProperty) ? inline.LetterSpacing : parent.LetterSpacing);
-    }
-
-    public static ProTextBrush? SnapshotBrush(IBrush? brush)
-    {
-        return brush switch
-        {
-            null => null,
-            ISolidColorBrush solid => new ProTextSolidBrush(solid.Color, solid.Opacity),
-            ILinearGradientBrush linear => new ProTextLinearGradientBrush(SnapshotGradientStops(linear), linear.Opacity, linear.SpreadMethod, linear.StartPoint, linear.EndPoint),
-            IRadialGradientBrush radial => new ProTextRadialGradientBrush(SnapshotGradientStops(radial), radial.Opacity, radial.SpreadMethod, radial.Center, radial.RadiusX, radial.RadiusY),
-            IConicGradientBrush conic => new ProTextConicGradientBrush(SnapshotGradientStops(conic), conic.Opacity, conic.SpreadMethod, conic.Center, conic.Angle),
-            _ => null
-        };
-    }
-
-    public static IReadOnlyList<ProTextDecoration> SnapshotDecorations(TextDecorationCollection? decorations)
-    {
-        if (decorations is null || decorations.Count == 0)
-        {
-            return Array.Empty<ProTextDecoration>();
-        }
-
-        var snapshot = new ProTextDecoration[decorations.Count];
-
-        for (var i = 0; i < decorations.Count; i++)
-        {
-            var decoration = decorations[i];
-            snapshot[i] = new ProTextDecoration(
-                decoration.Location,
-                SnapshotBrush(decoration.Stroke),
-                decoration.StrokeThickness,
-                decoration.StrokeThicknessUnit,
-                decoration.StrokeDashArray?.ToArray() ?? Array.Empty<double>(),
-                decoration.StrokeDashOffset,
-                decoration.StrokeLineCap,
-                decoration.StrokeOffset,
-                decoration.StrokeOffsetUnit);
-        }
-
-        return snapshot;
-    }
-
-    private static IReadOnlyList<ProTextGradientStop> SnapshotGradientStops(IGradientBrush brush)
-    {
-        var stops = new ProTextGradientStop[brush.GradientStops.Count];
-
-        for (var i = 0; i < stops.Length; i++)
-        {
-            var stop = brush.GradientStops[i];
-            stops[i] = new ProTextGradientStop(stop.Color, stop.Offset);
-        }
-
-        return stops;
     }
 }

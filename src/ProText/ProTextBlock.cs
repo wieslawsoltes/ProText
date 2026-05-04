@@ -6,6 +6,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Metadata;
 using Pretext;
+using ProText.Core;
 using ProText.Internal;
 
 namespace ProText;
@@ -556,7 +557,7 @@ public class ProTextBlock : Control
             var snapshot = GetLayoutSnapshot(content, contentSize.Width);
             _layoutSnapshot = snapshot;
 
-            return snapshot.Size.Inflate(padding);
+            return ProTextAvaloniaAdapter.ToAvalonia(snapshot.Size).Inflate(padding);
         }
 
         return new Size().Inflate(Padding);
@@ -718,8 +719,8 @@ public class ProTextBlock : Control
         var maxWidth = ResolveMaxWidth(availableWidth);
         var lineHeight = GetEffectiveLineHeight(content);
         var maxLines = MaxLines;
-        var textWrapping = TextWrapping;
-        var textTrimming = TextTrimming;
+        var textWrapping = ProTextAvaloniaAdapter.ToCore(TextWrapping);
+        var textTrimming = ProTextAvaloniaAdapter.ToCore(TextTrimming);
 
         if (_layoutSnapshot is { } snapshot && snapshot.Matches(content, maxWidth, lineHeight, maxLines, textWrapping, textTrimming))
         {
@@ -789,24 +790,15 @@ public class ProTextBlock : Control
 
     private double ResolveMaxWidth(double availableWidth)
     {
-        if ((TextWrapping == TextWrapping.NoWrap && ReferenceEquals(TextTrimming, TextTrimming.None)) || double.IsInfinity(availableWidth))
-        {
-            return double.PositiveInfinity;
-        }
-
-        if (double.IsNaN(availableWidth))
-        {
-            return 0;
-        }
-
-        return Math.Max(0, availableWidth);
+        return ProTextLayoutServices.ResolveMaxWidth(
+            availableWidth,
+            ProTextAvaloniaAdapter.ToCore(TextWrapping),
+            ProTextAvaloniaAdapter.ToCore(TextTrimming));
     }
 
     private double GetEffectiveLineHeight(ProTextRichContent content)
     {
-        var fontSize = Math.Max(FontSize, content.MaxFontSize);
-        var baseLineHeight = double.IsNaN(LineHeight) ? fontSize * PretextLineHeightMultiplier : LineHeight;
-        return Math.Max(0, baseLineHeight + LineSpacing);
+        return ProTextLayoutServices.GetEffectiveLineHeight(FontSize, content.MaxFontSize, LineHeight, LineSpacing, PretextLineHeightMultiplier);
     }
 
     private static Size DeflateNonNegative(Size size, Thickness thickness)

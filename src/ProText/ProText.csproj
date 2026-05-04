@@ -19,7 +19,10 @@
     <PackageReference Include="Avalonia" />
     <PackageReference Include="Avalonia.Skia" />
     <PackageReference Include="Pretext" />
-    <PackageReference Include="Pretext.SkiaSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../ProText.Core/ProText.Core.csproj" />
   </ItemGroup>
 
 </Project>

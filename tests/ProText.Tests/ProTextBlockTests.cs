@@ -192,7 +192,7 @@ public sealed class ProTextBlockTests
     [AvaloniaFact]
     public void Italic_font_style_resolves_italic_or_simulated_skia_typeface()
     {
-        using var resolvedTypeface = ProTextFontResolver.ResolveTypeface(
+        using var resolvedTypeface = ProText.Internal.ProTextFontResolver.ResolveTypeface(
             FontFamily.Default,
             FontWeight.Normal,
             FontStretch.Normal,
@@ -200,7 +200,7 @@ public sealed class ProTextBlockTests
 
         Assert.True(
             resolvedTypeface.Typeface.FontSlant is SKFontStyleSlant.Italic or SKFontStyleSlant.Oblique ||
-            (resolvedTypeface.Simulations & FontSimulations.Oblique) != 0);
+            (resolvedTypeface.Simulations & ProText.Core.ProTextFontSimulations.Oblique) != 0);
     }
 
     [AvaloniaFact]
