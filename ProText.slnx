@@ -9,6 +9,7 @@
     <Project Path="samples/ProText.Sample/ProText.Sample.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/ProText.Core/ProText.Core.csproj" />
     <Project Path="src/ProText/ProText.csproj" />
   </Folder>
   <Folder Name="/tests/">

@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+    <PackageId>ProText.Core</PackageId>
+    <Title>ProText.Core</Title>
+    <Description>Reusable PretextSharp text layout, cache, font, and Skia rendering core for ProText controls.</Description>
+    <PackageTags>Text;PretextSharp;SkiaSharp;Layout;Rendering</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Pretext" />
+    <PackageReference Include="Pretext.SkiaSharp" />
+    <PackageReference Include="SkiaSharp" />
+  </ItemGroup>
+
+</Project>
