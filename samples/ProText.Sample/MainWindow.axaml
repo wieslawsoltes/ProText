@@ -91,7 +91,7 @@
                                     <docs:Italic>italic</docs:Italic>
                                     <docs:Run Text=", and " />
                                     <docs:Underline>underlined</docs:Underline>
-                                    <docs:Run Text=" runs continue to use Avalonia's original inline engine." />
+                                    <docs:Run Text=" runs use matching inline styling in both comparison columns." />
                                 </TextBlock>
                             </StackPanel>
                         </Border>
@@ -108,7 +108,7 @@
                                     <docs:Italic>italic</docs:Italic>
                                     <docs:Run Text=", and " />
                                     <docs:Underline>underlined</docs:Underline>
-                                    <docs:Run Text=" runs stay on the shared Pretext inline renderer." />
+                                    <docs:Run Text=" runs use matching inline styling in both comparison columns." />
                                 </pro:ProTextBlock>
                             </StackPanel>
                         </Border>
@@ -129,6 +129,8 @@
                                                           SelectionStart="10"
                                                           SelectionEnd="29"
                                                           CaretIndex="45"
+                                                          PreeditText="IME"
+                                                          PreeditTextCursorPosition="2"
                                                           SelectionBrush="#663B82F6"
                                                           SelectionForegroundBrush="#FFFFFF"
                                                           Foreground="#17202C" />

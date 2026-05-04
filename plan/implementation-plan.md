@@ -20,7 +20,7 @@
 - Add `ProTextBox`, derived from `Avalonia.Controls.Primitives.TemplatedControl`, with a copied Avalonia Fluent TextBox theme retargeted to host `ProTextPresenter` in the template.
 - Keep all text rendering in the Pretext-powered path; do not add or use an internal Avalonia `TextBlock` fallback visual.
 - Add `ProTextCache` as the Avalonia facade over `ProText.Core` shared prepared text cache management and diagnostics.
-- Keep font descriptor building, layout snapshots, selection geometry, render font cache, and Skia drawing in `ProText.Core`.
+- Keep font descriptor building, layout snapshots, layout/prepared-content cache orchestration, editable text display composition, selection geometry, render font cache, and Skia drawing in `ProText.Core`.
 
 ## 3. Rendering
 
@@ -40,6 +40,7 @@
 ## 5. Tests
 
 - Add unit tests for cache reuse, cache bypass, property invalidation, rich-path eligibility, multilingual Pretext rendering, and the no-Avalonia-fallback invariant.
+- Add core tests for `ProTextLayoutCache`, render-only style remapping, `ProTextSelectionGeometryCache`, `ProTextEditableText`, and culture-invariant fingerprints.
 - Add headless render tests that show `ProTextBlock` and `TextBlock` in the same window and capture a frame.
 - Add measurement tests for wrapping, no-wrap, max lines, and padding.
 - Add headless and layout tests for `ProTextPresenter` measure, caret bounds, caret movement, hit testing, selection rendering, password masking, preedit text, and inline rendering.
@@ -55,6 +56,7 @@
   - `ProTextBlock` measure path
   - rich inline and feature-heavy `TextBlock` versus `ProTextBlock` measure paths
   - headless render frame comparison
+- Add core benchmarks for layout cache cold/hit/two-width toggles, editable text composition, selection geometry cache hit/miss, and Skia renderer solid/gradient/selection frames.
 - Add dedicated inline benchmark project for `TextBlock`, `ProTextBlock`, and `ProTextPresenter` inline measurement.
 - Add dedicated presenter benchmark project for presenter measurement, caret bounds, hit testing, selection, and render capture.
 - Add dedicated TextBox benchmark project for Avalonia `TextBox` versus `ProTextBox` measurement and headless render capture, including selected-text state.
@@ -66,6 +68,6 @@
 - Build the solution.
 - Run tests.
 - Run a smoke benchmark or at least verify the benchmark project builds.
-- Verify benchmark discovery for the base, inline, and presenter benchmark projects.
+- Verify benchmark discovery for the base, inline, presenter, and TextBox benchmark projects sequentially or after a Release prebuild to avoid shared `obj/Release` file locks.
 - Run and compare the TextBox benchmark project when changing `ProTextBox` or its theme.
 - Start the sample app if the environment can launch an Avalonia desktop process; otherwise report the command.

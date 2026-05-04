@@ -125,13 +125,24 @@ ProText keeps text on the Pretext-powered path from preparation through renderin
 - rich inline text is flattened into immutable ProText value data, then prepared through Pretext rich inline APIs
 - layout snapshots are local to each control and keyed by width
 - global prepared-content cache keys exclude viewport width so prepared text can be reused across controls
-- layout and render fingerprints are tracked separately
+- layout and render fingerprints are tracked separately; render-only style changes remap retained layout geometry without re-preparing text
 - render operations snapshot brushes, decorations, and selection styles into immutable value data
 - Skia drawing is performed through Avalonia custom draw operations using `ISkiaSharpApiLeaseFeature`
 
 Supported inline text content includes `Run`, `Span`, `Bold`, `Italic`, `Underline`, and `LineBreak`. `InlineUIContainer` is skipped because it is visual content rather than text content; ProText does not create an internal Avalonia fallback visual for it.
 
 Foreground brushes support solid colors and gradient brushes where practical. Multilingual text remains on the Pretext path and uses the ProText Skia font resolver for font fallback.
+
+## Core Adapter APIs
+
+Non-Avalonia hosts adapt their own text/style objects into `ProText.Core` value data, then reuse the same preparation, layout, geometry, and Skia rendering services:
+
+- `ProTextRichContentBuilder` and `ProTextRichStyle` create immutable plain or rich text content with separate layout and render fingerprints.
+- `ProTextLayoutCache` owns per-host current and previous width-local layout snapshots and prepared-content reuse.
+- `ProTextLayoutRequest` captures layout width, line height, max lines, wrapping, trimming, and global-cache preference.
+- `ProTextSelectionGeometryCache` caches selection rectangles by snapshot, selection range, bounds width, alignment, and flow direction.
+- `ProTextEditableText` composes presenter display text for caret, password masking, and IME preedit text without depending on Avalonia.
+- `ProTextSkiaRenderer` draws layout snapshots to `SKCanvas` using immutable core render options.
 
 ## Cache And Diagnostics
 

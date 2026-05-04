@@ -115,9 +115,11 @@ Cache key fields:
 - per-run font descriptor, including letter spacing, stretch, and font-feature fingerprint
 - white-space mode and word-break mode for the legacy simple prepared-text cache
 
-Prepared text cache keys intentionally use layout-affecting fingerprints only. Control-local layout snapshots additionally include render fingerprints for foreground brushes and text decorations so visual-only changes repaint correctly without fragmenting the global Pretext preparation cache.
+Prepared text cache keys intentionally use layout-affecting fingerprints only. `ProTextLayoutCache` keeps current and previous width-local layout snapshots on the host/control instance and matches those snapshots by layout fingerprint, width, effective line height, max lines, wrapping, and trimming. When only render fingerprints change, the cache remaps retained fragments to the new immutable render styles without re-preparing text or rebuilding line geometry.
 
-Layout is width-dependent, so prepared text is cached globally while layout results are cached on the control instance for the current width and effective line height. This avoids unbounded global width-key growth and lets repeated measure/render passes stay allocation-light.
+Layout is width-dependent, so prepared text is cached globally while layout results are cached on the control instance for the current and previous width/effective line-height request. This avoids unbounded global width-key growth and lets repeated measure/render passes and width toggles stay allocation-light.
+
+`ProTextSelectionGeometryCache` stores selection rectangles by layout snapshot, normalized selection range, bounds width, text alignment, and flow direction. `ProTextEditableText` centralizes presenter display-text composition for password masking, IME preedit insertion, and effective caret index calculation so non-Avalonia adapters can reuse the same editable text behavior.
 
 The public Avalonia `ProTextCache` type is a source-compatible facade over `ProText.Core.ProTextCoreCache`; it also ensures the Avalonia font resolver is installed before controls prepare or measure text.
 
