@@ -18,9 +18,9 @@ env:
   DOTNET_VERSION: '10.0.x'
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
-  SOLUTION_FILE: ProTextBlock.slnx
-  TEST_PROJECT: tests/ProTextBlock.Tests/ProTextBlock.Tests.csproj
-  PACKAGE_PROJECT: src/ProTextBlock/ProTextBlock.csproj
+  SOLUTION_FILE: ProText.slnx
+  TEST_PROJECT: tests/ProText.Tests/ProText.Tests.csproj
+  PACKAGE_PROJECT: src/ProText/ProText.csproj
 
 jobs:
   build-test:
@@ -76,17 +76,17 @@ jobs:
       - name: Build
         run: dotnet build ${{ env.SOLUTION_FILE }} -c Release --no-restore -warnaserror /p:ContinuousIntegrationBuild=true
 
-      - name: List ProTextBlock benchmarks
-        run: dotnet run --no-build -c Release --project benchmarks/ProTextBlock.Benchmarks/ProTextBlock.Benchmarks.csproj -- --list flat
+      - name: List ProText benchmarks
+        run: dotnet run --no-build -c Release --project benchmarks/ProText.Benchmarks/ProText.Benchmarks.csproj -- --list flat
 
       - name: List inline benchmarks
-        run: dotnet run --no-build -c Release --project benchmarks/ProTextBlock.InlineBenchmarks/ProTextBlock.InlineBenchmarks.csproj -- --list flat
+        run: dotnet run --no-build -c Release --project benchmarks/ProText.InlineBenchmarks/ProText.InlineBenchmarks.csproj -- --list flat
 
       - name: List presenter benchmarks
-        run: dotnet run --no-build -c Release --project benchmarks/ProTextBlock.PresenterBenchmarks/ProTextBlock.PresenterBenchmarks.csproj -- --list flat
+        run: dotnet run --no-build -c Release --project benchmarks/ProText.PresenterBenchmarks/ProText.PresenterBenchmarks.csproj -- --list flat
 
       - name: List TextBox benchmarks
-        run: dotnet run --no-build -c Release --project benchmarks/ProTextBlock.TextBoxBenchmarks/ProTextBlock.TextBoxBenchmarks.csproj -- --list flat
+        run: dotnet run --no-build -c Release --project benchmarks/ProText.TextBoxBenchmarks/ProText.TextBoxBenchmarks.csproj -- --list flat
 
   pack-preview:
     name: Pack Preview

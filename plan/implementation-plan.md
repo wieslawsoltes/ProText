@@ -1,10 +1,10 @@
-# ProTextBlock Implementation Plan
+# ProText Implementation Plan
 
 ## 1. Repository Setup
 
 - Create a solution with library, sample, test, and benchmark projects.
 - Target `net10.0` for the library and developer tooling in this workspace.
-- Use central package management for Avalonia `12.0.2`, PretextSharp `0.1.0`, SkiaSharp, xUnit, Avalonia headless testing, and BenchmarkDotNet.
+- Use central package management for Avalonia, PretextSharp, SkiaSharp, xUnit, Avalonia headless testing, and BenchmarkDotNet.
 - Enable nullable reference types and implicit usings.
 
 ## 2. Control Library
@@ -17,7 +17,7 @@
 - Add `ProTextPresenter`, derived from `Avalonia.Controls.Control`, with presenter-style text, inline, selection, caret, preedit, password, hit-test, and measurement APIs backed by the shared Pretext rich-content and layout snapshot pipeline.
 - Add `ProTextBox`, derived from `Avalonia.Controls.Primitives.TemplatedControl`, with a copied Avalonia Fluent TextBox theme retargeted to host `ProTextPresenter` in the template.
 - Keep all text rendering in the Pretext-powered path; do not add or use an internal Avalonia `TextBlock` fallback visual.
-- Add `ProTextBlockCache` for shared prepared text cache management and diagnostics.
+- Add `ProTextCache` for shared prepared text cache management and diagnostics.
 - Add small internal helper types for font descriptor building, layout snapshots, and Skia drawing.
 
 ## 3. Rendering

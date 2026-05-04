@@ -2,7 +2,7 @@
 
 ## Project Mission
 
-Build `ProTextBlock`, a high-performance Avalonia 12.x text display control powered by PretextSharp `0.1.0`. The control should preserve the public text-related `TextBlock` API surface as much as possible while keeping layout, measurement, caching, and rendering on the Pretext-powered path.
+Build `ProText`, a high-performance Avalonia text controls library powered by PretextSharp. `ProTextBlock` should preserve the public text-related `TextBlock` API surface as much as possible while keeping layout, measurement, caching, and rendering on the Pretext-powered path.
 
 Also maintain `ProTextPresenter`, a reusable Pretext-powered presenter for custom editable text surfaces. It shares the same rich inline, layout, cache, and Skia rendering core as `ProTextBlock` and provides presenter-style caret, selection, preedit, password, hit-test, and measurement APIs.
 
@@ -10,12 +10,12 @@ Maintain `ProTextBox` as a lightweight TextBox-like host for `ProTextPresenter`.
 
 ## Hard Requirements
 
-- Target Avalonia `12.x.x` with the current package baseline in `Directory.Packages.props`.
+- Target the current Avalonia package baseline in `Directory.Packages.props`.
 - Use PretextSharp for text preparation, layout, rich inline measurement, line materialization, and high-performance text rendering support.
 - Do not add or use an internal Avalonia `TextBlock` fallback inside `ProTextBlock`.
 - Do not route multilingual text, rich text, unsupported rich cases, or explicit compatibility switches through Avalonia `TextBlock` from inside `ProTextBlock`.
 - Keep global prepared-text caching enabled by default with per-control opt-out through `UseGlobalCache`.
-- Keep the shared cache bounded and expose diagnostic counters through `ProTextBlockCache.GetSnapshot()`.
+- Keep the shared cache bounded and expose diagnostic counters through `ProTextCache.GetSnapshot()`.
 - Keep per-control layout snapshots width-local so global cache keys do not grow by viewport width.
 - Keep render operations free of live mutable Avalonia brush/decoration objects; snapshot render styles into immutable ProText value data.
 - Preserve layout-only and render fingerprints separately: layout fingerprints drive global Pretext prepared-content cache reuse; render fingerprints invalidate control-local snapshots.
@@ -29,7 +29,7 @@ Maintain `ProTextBox` as a lightweight TextBox-like host for `ProTextPresenter`.
 - Embedded `InlineUIContainer` content must not create an Avalonia fallback visual. It may be skipped or treated as unsupported non-text content, but it must not be rendered by an internal `TextBlock`.
 - Rich features should remain on the Pretext path: inlines, trimming, text decorations, font features in cache identity, letter spacing, and non-solid foreground brushes.
 - Foreground brushes should support solid, linear gradient, radial gradient, and conic gradient where practical.
-- Multilingual text must remain on the Pretext path. Use Pretext segmentation and the ProTextBlock Skia font resolver for font fallback instead of Avalonia fallback.
+- Multilingual text must remain on the Pretext path. Use Pretext segmentation and the ProText Skia font resolver for font fallback instead of Avalonia fallback.
 - Rendering should use Skia through Avalonia custom drawing with `ISkiaSharpApiLeaseFeature`.
 - If the Skia lease is unavailable, the custom draw operation may skip drawing rather than falling back to Avalonia `TextBlock`.
 - `ProTextPresenter` must keep selection, caret, preedit, password display, inlines, and hit testing on the Pretext/shared-rendering path. Do not call Avalonia `TextLayout` or use Avalonia `TextPresenter` internals from this package.
@@ -60,18 +60,18 @@ Maintain `ProTextBox` as a lightweight TextBox-like host for `ProTextPresenter`.
 Run these after implementation changes:
 
 ```bash
-dotnet build ProTextBlock.slnx
-dotnet test tests/ProTextBlock.Tests/ProTextBlock.Tests.csproj
-dotnet run --project samples/ProTextBlock.Sample/ProTextBlock.Sample.csproj
+dotnet build ProText.slnx
+dotnet test tests/ProText.Tests/ProText.Tests.csproj
+dotnet run --project samples/ProText.Sample/ProText.Sample.csproj
 ```
 
 For benchmark discovery or execution:
 
 ```bash
-dotnet run -c Release --project benchmarks/ProTextBlock.Benchmarks/ProTextBlock.Benchmarks.csproj -- --list flat
-dotnet run -c Release --project benchmarks/ProTextBlock.InlineBenchmarks/ProTextBlock.InlineBenchmarks.csproj -- --list flat
-dotnet run -c Release --project benchmarks/ProTextBlock.PresenterBenchmarks/ProTextBlock.PresenterBenchmarks.csproj -- --list flat
-dotnet run -c Release --project benchmarks/ProTextBlock.TextBoxBenchmarks/ProTextBlock.TextBoxBenchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProText.Benchmarks/ProText.Benchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProText.InlineBenchmarks/ProText.InlineBenchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProText.PresenterBenchmarks/ProText.PresenterBenchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProText.TextBoxBenchmarks/ProText.TextBoxBenchmarks.csproj -- --list flat
 ```
 
 ## Engineering Guidance
@@ -79,5 +79,5 @@ dotnet run -c Release --project benchmarks/ProTextBlock.TextBoxBenchmarks/ProTex
 - Prefer small, focused changes that preserve existing project style.
 - Do not modify the sibling PretextSharp repository unless the requested feature truly cannot be implemented through existing Pretext APIs and the user explicitly accepts that cross-repo change.
 - Keep performance-sensitive paths allocation-conscious, but prefer correctness for glyph/font fallback over drawing missing-glyph boxes.
-- Avoid sample-only fixes for control bugs. Fix root behavior in `src/ProTextBlock` first, then adjust samples/tests/docs.
+- Avoid sample-only fixes for control bugs. Fix root behavior in `src/ProText` first, then adjust samples/tests/docs.
 - Do not add unrelated refactors while fixing rendering, cache, or API issues.

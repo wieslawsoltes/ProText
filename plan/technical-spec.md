@@ -1,10 +1,8 @@
-# ProTextBlock Technical Specification
+# ProText Technical Specification
 
 ## Scope
 
-`ProTextBlock` is an Avalonia 12.x control package that provides a high-performance text block for text-heavy UI surfaces while preserving `TextBlock` source compatibility wherever Avalonia exposes public APIs.
-
-The implementation targets Avalonia `12.0.2` and PretextSharp `0.1.0`.
+ProText is a package of high-performance Avalonia text controls powered by PretextSharp. Its display control, `ProTextBlock`, preserves `TextBlock` source compatibility wherever Avalonia exposes public APIs.
 
 ## Source Baseline
 
@@ -71,8 +69,8 @@ Avalonia's built-in `TextBox` template part is strongly typed to Avalonia's inte
 
 Static cache API:
 
-- `ProTextBlockCache.Clear()` clears the library-level cache and Pretext's internal cache.
-- `ProTextBlockCache.GetSnapshot()` returns basic counters for diagnostics and benchmarks.
+- `ProTextCache.Clear()` clears the library-level cache and Pretext's internal cache.
+- `ProTextCache.GetSnapshot()` returns basic counters for diagnostics and benchmarks.
 
 ## Rendering Strategy
 
@@ -90,7 +88,7 @@ The Pretext path is enabled when `UsePretextRendering == true` and the content c
 When enabled:
 
 1. Flatten plain text or inline content into styled `ProTextRichContent` using shared `ProTextInlineBuilder` and `ProTextRichContentBuilder` helpers.
-2. Convert Avalonia font properties to an extended Pretext font string that includes ProTextBlock tracking, stretch, and feature markers.
+2. Convert Avalonia font properties to an extended Pretext font string that includes ProText tracking, stretch, and feature markers.
 3. Retrieve or prepare `PreparedRichInline` instances through `PretextLayout.PrepareRichInline`.
 4. Measure by walking `RichInlineLineRange` data and only materialize fragment strings for retained visible lines.
 5. Render with an Avalonia `ICustomDrawOperation` and `ISkiaSharpApiLeaseFeature` when the active renderer is Skia.
@@ -104,7 +102,7 @@ No Avalonia TextBlock fallback:
 
 - `ProTextBlock` never measures, arranges, or renders through an internal Avalonia `TextBlock`.
 - Embedded `InlineUIContainer` content is not rendered by the text control because it is not text content and no fallback visual is created.
-- Text containing scripts that require font fallback stays in the Pretext path and is measured/drawn with the ProTextBlock Skia font resolver.
+- Text containing scripts that require font fallback stays in the Pretext path and is measured/drawn with the ProText Skia font resolver.
 - If the Skia lease is unavailable inside the custom draw operation, the operation skips drawing; the fast path is intended for Avalonia's Skia renderer, which is the default desktop/headless renderer used by the sample, tests, and benchmarks.
 
 ## Cache Strategy
@@ -147,7 +145,7 @@ Known v1 limitations:
 
 - embedded controls inside `InlineUIContainer` are not rendered by `ProTextBlock`
 - embedded controls inside `InlineUIContainer` are not rendered by `ProTextPresenter`
-- complex-script shaping is limited by the active Skia/Pretext backend; font fallback is handled by the ProTextBlock Skia font resolver
+- complex-script shaping is limited by the active Skia/Pretext backend; font fallback is handled by the ProText Skia font resolver
 - image, visual, and drawing foreground brushes are not translated to Skia text shaders yet
 - OpenType font features are part of the cache/layout identity; final shaping depends on the available Skia backend support
 - `ProTextPresenter` selection/caret APIs cover presenter-style display and hit testing, but full text editing command handling and built-in `TextBox` replacement are out of scope for this package phase
@@ -155,21 +153,21 @@ Known v1 limitations:
 
 ## Projects
 
-- `src/ProTextBlock`: control library
-- `samples/ProTextBlock.Sample`: Avalonia desktop sample comparing `TextBlock`, `ProTextBlock`, inline content, and `ProTextPresenter`
-- `tests/ProTextBlock.Tests`: xUnit plus Avalonia headless render tests
-- `benchmarks/ProTextBlock.Benchmarks`: BenchmarkDotNet layout/render benchmarks
-- `benchmarks/ProTextBlock.InlineBenchmarks`: BenchmarkDotNet inline layout benchmarks
-- `benchmarks/ProTextBlock.PresenterBenchmarks`: BenchmarkDotNet presenter layout, caret, hit-test, selection, and render benchmarks
-- `benchmarks/ProTextBlock.TextBoxBenchmarks`: BenchmarkDotNet Avalonia `TextBox` versus `ProTextBox` measure and headless render benchmarks
+- `src/ProText`: control library
+- `samples/ProText.Sample`: Avalonia desktop sample comparing `TextBlock`, `ProTextBlock`, inline content, and `ProTextPresenter`
+- `tests/ProText.Tests`: xUnit plus Avalonia headless render tests
+- `benchmarks/ProText.Benchmarks`: BenchmarkDotNet layout/render benchmarks
+- `benchmarks/ProText.InlineBenchmarks`: BenchmarkDotNet inline layout benchmarks
+- `benchmarks/ProText.PresenterBenchmarks`: BenchmarkDotNet presenter layout, caret, hit-test, selection, and render benchmarks
+- `benchmarks/ProText.TextBoxBenchmarks`: BenchmarkDotNet Avalonia `TextBox` versus `ProTextBox` measure and headless render benchmarks
 
 ## Verification
 
-- `dotnet restore ProTextBlock.slnx`
-- `dotnet build ProTextBlock.slnx`
-- `dotnet test tests/ProTextBlock.Tests/ProTextBlock.Tests.csproj`
-- `dotnet run -c Release --project benchmarks/ProTextBlock.Benchmarks/ProTextBlock.Benchmarks.csproj -- --filter *`
-- `dotnet run -c Release --project benchmarks/ProTextBlock.InlineBenchmarks/ProTextBlock.InlineBenchmarks.csproj -- --list flat`
-- `dotnet run -c Release --project benchmarks/ProTextBlock.PresenterBenchmarks/ProTextBlock.PresenterBenchmarks.csproj -- --list flat`
-- `dotnet run -c Release --project benchmarks/ProTextBlock.TextBoxBenchmarks/ProTextBlock.TextBoxBenchmarks.csproj -- --list flat`
-- sample app launch: `dotnet run --project samples/ProTextBlock.Sample/ProTextBlock.Sample.csproj`
+- `dotnet restore ProText.slnx`
+- `dotnet build ProText.slnx`
+- `dotnet test tests/ProText.Tests/ProText.Tests.csproj`
+- `dotnet run -c Release --project benchmarks/ProText.Benchmarks/ProText.Benchmarks.csproj -- --filter *`
+- `dotnet run -c Release --project benchmarks/ProText.InlineBenchmarks/ProText.InlineBenchmarks.csproj -- --list flat`
+- `dotnet run -c Release --project benchmarks/ProText.PresenterBenchmarks/ProText.PresenterBenchmarks.csproj -- --list flat`
+- `dotnet run -c Release --project benchmarks/ProText.TextBoxBenchmarks/ProText.TextBoxBenchmarks.csproj -- --list flat`
+- sample app launch: `dotnet run --project samples/ProText.Sample/ProText.Sample.csproj`

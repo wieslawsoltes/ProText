@@ -26,9 +26,9 @@ env:
   DOTNET_VERSION: '10.0.x'
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
-  SOLUTION_FILE: ProTextBlock.slnx
-  TEST_PROJECT: tests/ProTextBlock.Tests/ProTextBlock.Tests.csproj
-  PACKAGE_PROJECT: src/ProTextBlock/ProTextBlock.csproj
+  SOLUTION_FILE: ProText.slnx
+  TEST_PROJECT: tests/ProText.Tests/ProText.Tests.csproj
+  PACKAGE_PROJECT: src/ProText/ProText.csproj
 
 jobs:
   validate:

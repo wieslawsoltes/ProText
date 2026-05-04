@@ -4,7 +4,7 @@ High-performance Avalonia 12 text controls powered by PretextSharp.
 
 ProText is a focused text rendering toolkit for Avalonia applications that need fast measurement, predictable caching, rich inline display, editable text presentation, and TextBox-like input surfaces without routing text rendering through Avalonia `TextBlock` fallbacks.
 
-The repository was renamed from `ProTextBlock` to `ProText` as the scope expanded beyond a single display control. The current library project, package id, assembly name, and CLR namespace remain `ProTextBlock` for compatibility while the product name is ProText.
+The repository, library project, package id, assembly name, and CLR namespace are now `ProText` because the scope covers display, presenter, and editable text controls.
 
 The controls are mapped into Avalonia's XML namespace through assembly-level `XmlnsDefinition` metadata, so they can be used directly in normal Avalonia XAML once the package or project reference is present.
 
@@ -12,29 +12,29 @@ The controls are mapped into Avalonia's XML namespace through assembly-level `Xm
 
 | Package | Version | Downloads | Purpose |
 | --- | --- | --- | --- |
-| [ProTextBlock](https://www.nuget.org/packages/ProTextBlock/) | [![NuGet](https://img.shields.io/nuget/v/ProTextBlock.svg)](https://www.nuget.org/packages/ProTextBlock/) | [![Downloads](https://img.shields.io/nuget/dt/ProTextBlock.svg)](https://www.nuget.org/packages/ProTextBlock/) | ProText control library with `ProTextBlock`, `ProTextPresenter`, `ProTextBox`, Fluent theme resources, XML documentation, README metadata, and symbol packages. |
+| [ProText](https://www.nuget.org/packages/ProText/) | [![NuGet](https://img.shields.io/nuget/v/ProText.svg)](https://www.nuget.org/packages/ProText/) | [![Downloads](https://img.shields.io/nuget/dt/ProText.svg)](https://www.nuget.org/packages/ProText/) | ProText control library with `ProTextBlock`, `ProTextPresenter`, `ProTextBox`, Fluent theme resources, XML documentation, README metadata, and symbol packages. |
 
 Install the package with:
 
 ```bash
-dotnet add package ProTextBlock
+dotnet add package ProText
 ```
 
 Or reference it directly from a project file:
 
 ```xml
-<PackageReference Include="ProTextBlock" Version="0.1.0" />
+<PackageReference Include="ProText" Version="0.1.0" />
 ```
 
 For local development inside this repository, reference the project directly:
 
 ```xml
-<ProjectReference Include="../../src/ProTextBlock/ProTextBlock.csproj" />
+<ProjectReference Include="../../src/ProText/ProText.csproj" />
 ```
 
 Package metadata:
 
-- Package id: `ProTextBlock`
+- Package id: `ProText`
 - Package title: `ProText`
 - Description: `High-performance Avalonia 12 text controls powered by PretextSharp.`
 - License: `MIT`
@@ -42,7 +42,7 @@ Package metadata:
 - Dependencies: Avalonia, Avalonia Skia rendering support, Pretext, and Pretext Skia rendering support
 - Artifacts: `.nupkg`, `.snupkg`, XML documentation, and the root [README.md](README.md)
 
-Only [src/ProTextBlock/ProTextBlock.csproj](src/ProTextBlock/ProTextBlock.csproj) is packable. Samples, tests, and benchmark projects are explicitly marked as non-packable.
+Only [src/ProText/ProText.csproj](src/ProText/ProText.csproj) is packable. Samples, tests, and benchmark projects are explicitly marked as non-packable.
 
 ## Controls
 
@@ -115,7 +115,7 @@ Foreground brushes support solid colors and gradient brushes where practical. Mu
 
 Global prepared-text caching is enabled by default and can be disabled per control with `UseGlobalCache="False"`.
 
-`ProTextBlockCache` exposes process-wide cache controls:
+`ProTextCache` exposes process-wide cache controls:
 
 - `MaxEntryCount` bounds the shared prepared-text and rich-inline cache
 - `Clear()` clears ProText and PretextSharp internal layout caches
@@ -187,7 +187,7 @@ To use the Fluent `ProTextBox` theme, merge the ProText theme after Avalonia's F
 <Application.Resources>
     <ResourceDictionary>
         <ResourceDictionary.MergedDictionaries>
-            <ResourceInclude Source="avares://ProTextBlock/Themes/Fluent.axaml" />
+            <ResourceInclude Source="avares://ProText/Themes/Fluent.axaml" />
         </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
 </Application.Resources>
@@ -207,7 +207,7 @@ The sample project demonstrates the current control set and comparison scenarios
 Run it with:
 
 ```bash
-dotnet run --project samples/ProTextBlock.Sample/ProTextBlock.Sample.csproj
+dotnet run --project samples/ProText.Sample/ProText.Sample.csproj
 ```
 
 ## Performance Snapshot
@@ -217,7 +217,7 @@ The TextBox benchmark suite applies Avalonia's Fluent TextBox theme and the ProT
 Command used for the latest documented TextBox run:
 
 ```bash
-dotnet run -c Release --project benchmarks/ProTextBlock.TextBoxBenchmarks/ProTextBlock.TextBoxBenchmarks.csproj -- --filter "*"
+dotnet run -c Release --project benchmarks/ProText.TextBoxBenchmarks/ProText.TextBoxBenchmarks.csproj -- --filter "*"
 ```
 
 Environment: Apple M3 Pro, .NET `10.0.5`, BenchmarkDotNet `0.15.8`, ShortRun job.
@@ -236,24 +236,24 @@ Frame decomposition from the same run shows fixed headless rendering cost separa
 
 ## Project Layout
 
-- `src/ProTextBlock` - ProText control library, themes, shared layout, cache, and Skia renderer
-- `samples/ProTextBlock.Sample` - desktop comparison and stress sample app
-- `tests/ProTextBlock.Tests` - unit tests and Avalonia headless rendering tests
-- `benchmarks/ProTextBlock.Benchmarks` - TextBlock, layout, cache, and render benchmarks
-- `benchmarks/ProTextBlock.InlineBenchmarks` - rich-inline layout benchmarks
-- `benchmarks/ProTextBlock.PresenterBenchmarks` - presenter measurement, hit-test, caret, selection, and render benchmarks
-- `benchmarks/ProTextBlock.TextBoxBenchmarks` - Avalonia TextBox versus ProTextBox benchmarks
+- `src/ProText` - ProText control library, themes, shared layout, cache, and Skia renderer
+- `samples/ProText.Sample` - desktop comparison and stress sample app
+- `tests/ProText.Tests` - unit tests and Avalonia headless rendering tests
+- `benchmarks/ProText.Benchmarks` - TextBlock, layout, cache, and render benchmarks
+- `benchmarks/ProText.InlineBenchmarks` - rich-inline layout benchmarks
+- `benchmarks/ProText.PresenterBenchmarks` - presenter measurement, hit-test, caret, selection, and render benchmarks
+- `benchmarks/ProText.TextBoxBenchmarks` - Avalonia TextBox versus ProTextBox benchmarks
 - `plan` - technical specification and implementation plan
 
 ## Verification
 
 ```bash
-dotnet build ProTextBlock.slnx
-dotnet test tests/ProTextBlock.Tests/ProTextBlock.Tests.csproj
-dotnet run -c Release --project benchmarks/ProTextBlock.Benchmarks/ProTextBlock.Benchmarks.csproj -- --list flat
-dotnet run -c Release --project benchmarks/ProTextBlock.InlineBenchmarks/ProTextBlock.InlineBenchmarks.csproj -- --list flat
-dotnet run -c Release --project benchmarks/ProTextBlock.PresenterBenchmarks/ProTextBlock.PresenterBenchmarks.csproj -- --list flat
-dotnet run -c Release --project benchmarks/ProTextBlock.TextBoxBenchmarks/ProTextBlock.TextBoxBenchmarks.csproj -- --list flat
+dotnet build ProText.slnx
+dotnet test tests/ProText.Tests/ProText.Tests.csproj
+dotnet run -c Release --project benchmarks/ProText.Benchmarks/ProText.Benchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProText.InlineBenchmarks/ProText.InlineBenchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProText.PresenterBenchmarks/ProText.PresenterBenchmarks.csproj -- --list flat
+dotnet run -c Release --project benchmarks/ProText.TextBoxBenchmarks/ProText.TextBoxBenchmarks.csproj -- --list flat
 ```
 
 ## Design Principles

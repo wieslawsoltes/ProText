@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/ProText.Benchmarks/ProText.Benchmarks.csproj" />
+    <Project Path="benchmarks/ProText.InlineBenchmarks/ProText.InlineBenchmarks.csproj" />
+    <Project Path="benchmarks/ProText.PresenterBenchmarks/ProText.PresenterBenchmarks.csproj" />
+    <Project Path="benchmarks/ProText.TextBoxBenchmarks/ProText.TextBoxBenchmarks.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/ProText.Sample/ProText.Sample.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/ProText/ProText.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ProText.Tests/ProText.Tests.csproj" />
+  </Folder>
+</Solution>
