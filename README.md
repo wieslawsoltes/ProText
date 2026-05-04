@@ -1,10 +1,48 @@
 # ProText
 
-High-performance text controls for Avalonia 12, powered by PretextSharp `0.1.0` and Skia.
+High-performance Avalonia 12 text controls powered by PretextSharp.
 
 ProText is a focused text rendering toolkit for Avalonia applications that need fast measurement, predictable caching, rich inline display, editable text presentation, and TextBox-like input surfaces without routing text rendering through Avalonia `TextBlock` fallbacks.
 
-The repository was renamed from `ProTextBlock` to `ProText` as the scope expanded beyond a single display control. The current library project, assembly, package id, and XML namespace are still `ProTextBlock` for compatibility while the product name is now ProText.
+The repository was renamed from `ProTextBlock` to `ProText` as the scope expanded beyond a single display control. The current library project, package id, assembly name, and CLR namespace remain `ProTextBlock` for compatibility while the product name is ProText.
+
+The controls are mapped into Avalonia's XML namespace through assembly-level `XmlnsDefinition` metadata, so they can be used directly in normal Avalonia XAML once the package or project reference is present.
+
+## Packages
+
+| Package | Version | Downloads | Purpose |
+| --- | --- | --- | --- |
+| [ProTextBlock](https://www.nuget.org/packages/ProTextBlock/) | [![NuGet](https://img.shields.io/nuget/v/ProTextBlock.svg)](https://www.nuget.org/packages/ProTextBlock/) | [![Downloads](https://img.shields.io/nuget/dt/ProTextBlock.svg)](https://www.nuget.org/packages/ProTextBlock/) | ProText control library with `ProTextBlock`, `ProTextPresenter`, `ProTextBox`, Fluent theme resources, XML documentation, README metadata, and symbol packages. |
+
+Install the package with:
+
+```bash
+dotnet add package ProTextBlock
+```
+
+Or reference it directly from a project file:
+
+```xml
+<PackageReference Include="ProTextBlock" Version="0.1.0" />
+```
+
+For local development inside this repository, reference the project directly:
+
+```xml
+<ProjectReference Include="../../src/ProTextBlock/ProTextBlock.csproj" />
+```
+
+Package metadata:
+
+- Package id: `ProTextBlock`
+- Package title: `ProText`
+- Description: `High-performance Avalonia 12 text controls powered by PretextSharp.`
+- License: `MIT`
+- Repository: `https://github.com/wieslawsoltes/ProText`
+- Dependencies: Avalonia, Avalonia Skia rendering support, Pretext, and Pretext Skia rendering support
+- Artifacts: `.nupkg`, `.snupkg`, XML documentation, and the root [README.md](README.md)
+
+Only [src/ProTextBlock/ProTextBlock.csproj](src/ProTextBlock/ProTextBlock.csproj) is packable. Samples, tests, and benchmark projects are explicitly marked as non-packable.
 
 ## Controls
 
@@ -85,63 +123,62 @@ Global prepared-text caching is enabled by default and can be disabled per contr
 
 ## Quick Start
 
-Add a reference to the library project or package. Until the package rename is completed, the package id and assembly name are `ProTextBlock`.
+Reference the package or project, then use the controls from the standard Avalonia XAML namespace.
 
 ```xml
-<ProjectReference Include="../../src/ProTextBlock/ProTextBlock.csproj" />
-```
-
-For packaged builds, use the currently published `ProTextBlock` package id and the version produced by your release pipeline.
-
-Use the current XML namespace:
-
-```xml
-xmlns:pro="clr-namespace:ProTextBlock;assembly=ProTextBlock"
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="MyApp.MainWindow">
+    <ProTextBlock Text="High-volume text rendered through PretextSharp"
+                  TextWrapping="Wrap"
+                  TextTrimming="CharacterEllipsis"
+                  UseGlobalCache="True" />
+</Window>
 ```
 
 ### Display Text
 
 ```xml
-<pro:ProTextBlock Text="High-volume text rendered through PretextSharp"
-                  TextWrapping="Wrap"
-                  TextTrimming="CharacterEllipsis"
-                  UseGlobalCache="True" />
+<ProTextBlock Text="High-volume text rendered through PretextSharp"
+              TextWrapping="Wrap"
+              TextTrimming="CharacterEllipsis"
+              UseGlobalCache="True" />
 ```
 
 ### Rich Inline Text
 
 ```xml
-<pro:ProTextBlock TextWrapping="Wrap"
-                  xmlns:docs="clr-namespace:Avalonia.Controls.Documents;assembly=Avalonia.Controls">
+<ProTextBlock TextWrapping="Wrap"
+              xmlns:docs="clr-namespace:Avalonia.Controls.Documents;assembly=Avalonia.Controls">
     <docs:Run Text="Inline content: " />
     <docs:Bold>bold</docs:Bold>
     <docs:Run Text=", " />
     <docs:Italic>italic</docs:Italic>
     <docs:Run Text=", and " />
     <docs:Underline>underlined</docs:Underline>
-</pro:ProTextBlock>
+</ProTextBlock>
 ```
 
 ### Presenter Surface
 
 ```xml
-<pro:ProTextPresenter Text="Selectable text presented through ProText"
-                      TextWrapping="Wrap"
-                      CaretIndex="24"
-                      SelectionStart="9"
-                      SelectionEnd="16"
-                      SelectionBrush="#663B82F6"
-                      SelectionForegroundBrush="#FFFFFF" />
+<ProTextPresenter Text="Selectable text presented through ProText"
+                  TextWrapping="Wrap"
+                  CaretIndex="24"
+                  SelectionStart="9"
+                  SelectionEnd="16"
+                  SelectionBrush="#663B82F6"
+                  SelectionForegroundBrush="#FFFFFF" />
 ```
 
 ### Editable TextBox-Like Control
 
 ```xml
-<pro:ProTextBox Text="Editable text presented through ProTextPresenter"
-                TextWrapping="Wrap"
-                PlaceholderText="Search"
-                SelectionStart="9"
-                SelectionEnd="22" />
+<ProTextBox Text="Editable text presented through ProTextPresenter"
+            TextWrapping="Wrap"
+            PlaceholderText="Search"
+            SelectionStart="9"
+            SelectionEnd="22" />
 ```
 
 To use the Fluent `ProTextBox` theme, merge the ProText theme after Avalonia's Fluent theme:

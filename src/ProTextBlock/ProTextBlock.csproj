@@ -7,14 +7,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>ProTextBlock</PackageId>
     <Title>ProText</Title>
-    <Authors>Wieslaw Soltes</Authors>
     <Description>High-performance Avalonia 12 text controls powered by PretextSharp.</Description>
     <PackageTags>Avalonia;Text;TextBlock;TextBox;PretextSharp;SkiaSharp</PackageTags>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/wieslawsoltes/ProText</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/wieslawsoltes/ProText</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
