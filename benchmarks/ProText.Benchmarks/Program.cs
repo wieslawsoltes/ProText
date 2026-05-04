@@ -7,8 +7,10 @@ using Avalonia.Themes.Fluent;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using Pretext;
+using ProText.Core;
 using ProTextCacheApi = ProText.ProTextCache;
 using ProTextBlockControl = ProText.ProTextBlock;
+using SkiaSharp;
 
 BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
 
@@ -39,6 +41,137 @@ internal static class AvaloniaBenchmarkHost
 				UseHeadlessDrawing = false
 			})
 			.SetupWithoutStarting();
+	}
+}
+
+[MemoryDiagnoser]
+public class CoreLayoutBenchmarks
+{
+	private readonly string _text = string.Join(' ', Enumerable.Repeat(
+		"Core layout cache benchmarks exercise framework-neutral preparation, layout, selection, and rendering services.",
+		12));
+	private ProTextRichContent _content = null!;
+	private ProTextLayoutCache _layoutCache = null!;
+	private ProTextSelectionGeometryCache _selectionCache = null!;
+	private ProTextLayoutSnapshot _snapshot = null!;
+	private SKBitmap _bitmap = null!;
+	private SKCanvas _canvas = null!;
+
+	[Params(160, 320, 640)]
+	public double Width { get; set; }
+
+	[GlobalSetup]
+	public void Setup()
+	{
+		ProTextCoreCache.Clear();
+		_layoutCache = new ProTextLayoutCache();
+		_selectionCache = new ProTextSelectionGeometryCache();
+		var style = CreateStyle();
+		var builder = new ProTextRichContentBuilder(style);
+		builder.AppendText(_text, style);
+		_content = builder.Build();
+		_snapshot = _layoutCache.GetSnapshot(_content, CreateRequest(Width));
+		_layoutCache.GetSnapshot(_content, CreateRequest(Width + 48));
+		_snapshot = _layoutCache.GetSnapshot(_content, CreateRequest(Width));
+		_selectionCache.GetSelectionRects(
+			_snapshot,
+			0,
+			Math.Min(40, _content.Text.Length),
+			Width,
+			ProTextTextAlignment.Left,
+			ProTextFlowDirection.LeftToRight);
+		_bitmap = new SKBitmap(800, 400);
+		_canvas = new SKCanvas(_bitmap);
+	}
+
+	[GlobalCleanup]
+	public void Cleanup()
+	{
+		_canvas.Dispose();
+		_bitmap.Dispose();
+	}
+
+	[Benchmark]
+	public ProTextLayoutSnapshot ProTextLayoutCacheColdSnapshot()
+	{
+		var cache = new ProTextLayoutCache();
+		return cache.GetSnapshot(_content, CreateRequest(Width));
+	}
+
+	[Benchmark]
+	public ProTextLayoutSnapshot ProTextLayoutCacheHitSameWidth()
+	{
+		return _layoutCache.GetSnapshot(_content, CreateRequest(Width));
+	}
+
+	[Benchmark]
+	public ProTextLayoutSnapshot ProTextLayoutCacheToggleTwoWidths()
+	{
+		_layoutCache.GetSnapshot(_content, CreateRequest(Width));
+		return _layoutCache.GetSnapshot(_content, CreateRequest(Width + 48));
+	}
+
+	[Benchmark]
+	public ProTextSelectionRect[] ProTextSelectionGeometryCacheHit()
+	{
+		return _selectionCache.GetSelectionRects(
+			_snapshot,
+			0,
+			Math.Min(40, _content.Text.Length),
+			Width,
+			ProTextTextAlignment.Left,
+			ProTextFlowDirection.LeftToRight);
+	}
+
+	[Benchmark]
+	public ProTextEditableTextSnapshot ProTextEditableTextCreateSnapshotPasswordPreedit()
+	{
+		return ProTextEditableText.CreateSnapshot(new ProTextEditableTextOptions(
+			_text,
+			CaretIndex: 12,
+			PreeditText: "composition",
+			PreeditTextCursorPosition: 4,
+			PasswordChar: '*',
+			RevealPassword: false));
+	}
+
+	[Benchmark]
+	public void ProTextSkiaRendererSolidFrame()
+	{
+		_canvas.Clear(SKColors.Transparent);
+		ProTextSkiaRenderer.Render(
+			_canvas,
+			_snapshot,
+			new ProTextSkiaRenderOptions(
+				new ProTextRect(0, 0, Width, 400),
+				ProTextTextAlignment.Left,
+				ProTextFlowDirection.LeftToRight,
+				InheritedOpacity: 1));
+	}
+
+	private static ProTextRichStyle CreateStyle()
+	{
+		return new ProTextRichStyle(
+			ProTextFontDescriptor.DefaultFontFamily,
+			16,
+			ProTextFontStyle.Normal,
+			400,
+			5,
+			new ProTextSolidBrush(ProTextColor.FromRgb(0, 0, 0), 1),
+			textDecorations: [],
+			fontFeaturesFingerprint: "none",
+			letterSpacing: 0);
+	}
+
+	private static ProTextLayoutRequest CreateRequest(double width)
+	{
+		return new ProTextLayoutRequest(
+			width,
+			LineHeight: 22,
+			MaxLines: 0,
+			ProTextWrapping.Wrap,
+			ProTextTrimming.None,
+			UseGlobalCache: true);
 	}
 }
 
