@@ -175,9 +175,7 @@ public class ProTextBlock : Control
     private InlineCollection? _inlines;
     private readonly HashSet<InlineCollection> _observedInlineCollections = new();
     private readonly HashSet<Inline> _observedInlines = new();
-    private ProTextLayoutSnapshot? _layoutSnapshot;
-    private ProTextRichCacheKey? _localPreparedKey;
-    private ProTextPreparedContent? _localPrepared;
+    private readonly ProTextLayoutCache _layoutCache = new();
 
     static ProTextBlock()
     {
@@ -555,7 +553,6 @@ public class ProTextBlock : Control
             var padding = Padding;
             var contentSize = DeflateNonNegative(availableSize, padding);
             var snapshot = GetLayoutSnapshot(content, contentSize.Width);
-            _layoutSnapshot = snapshot;
 
             return ProTextAvaloniaAdapter.ToAvalonia(snapshot.Size).Inflate(padding);
         }
@@ -689,7 +686,7 @@ public class ProTextBlock : Control
 
     private void InvalidateProText()
     {
-        _layoutSnapshot = null;
+        _layoutCache.Clear();
         InvalidateMeasure();
         InvalidateVisual();
     }
@@ -716,62 +713,23 @@ public class ProTextBlock : Control
 
     private ProTextLayoutSnapshot GetLayoutSnapshot(ProTextRichContent content, double availableWidth)
     {
+        ProTextAvaloniaPlatform.EnsureConfigured();
+
         var maxWidth = ResolveMaxWidth(availableWidth);
         var lineHeight = GetEffectiveLineHeight(content);
         var maxLines = MaxLines;
         var textWrapping = ProTextAvaloniaAdapter.ToCore(TextWrapping);
         var textTrimming = ProTextAvaloniaAdapter.ToCore(TextTrimming);
 
-        if (_layoutSnapshot is { } snapshot && snapshot.Matches(content, maxWidth, lineHeight, maxLines, textWrapping, textTrimming))
-        {
-            return snapshot;
-        }
-
-        var prepared = GetPreparedContent(content);
-
-        snapshot = new ProTextLayoutSnapshot(
+        return _layoutCache.GetSnapshot(
             content,
-            prepared,
-            maxWidth,
-            lineHeight,
-            maxLines,
-            textWrapping,
-            textTrimming);
-
-        _layoutSnapshot = snapshot;
-        return snapshot;
-    }
-
-    private ProTextPreparedContent GetPreparedContent(ProTextRichContent content)
-    {
-        var key = new ProTextRichCacheKey(content.LayoutFingerprint);
-
-        if (!UseGlobalCache && _localPrepared is not null && _localPreparedKey == key)
-        {
-            return _localPrepared;
-        }
-
-        var preparedParagraphs = new PreparedRichInline[content.Paragraphs.Count];
-
-        for (var i = 0; i < content.Paragraphs.Count; i++)
-        {
-            var paragraph = content.Paragraphs[i];
-            var items = paragraph.CreateInlineItems();
-
-            preparedParagraphs[i] = UseGlobalCache
-                ? ProTextCache.GetOrPrepareRich(new ProTextRichCacheKey(paragraph.LayoutFingerprint), items)
-                : ProTextCache.PrepareRichUncached(items);
-        }
-
-        var prepared = new ProTextPreparedContent(preparedParagraphs);
-
-        if (!UseGlobalCache)
-        {
-            _localPreparedKey = key;
-            _localPrepared = prepared;
-        }
-
-        return prepared;
+            new ProTextLayoutRequest(
+                maxWidth,
+                lineHeight,
+                maxLines,
+                textWrapping,
+                textTrimming,
+                UseGlobalCache));
     }
 
     private ProTextRichStyle CreateBaseStyle()

@@ -8,7 +8,6 @@ using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 using Avalonia.Metadata;
 using Avalonia.Threading;
-using Pretext;
 using ProText.Core;
 using ProText.Internal;
 
@@ -220,17 +219,9 @@ public class ProTextPresenter : Control
     private InlineCollection? _inlines;
     private readonly HashSet<InlineCollection> _observedInlineCollections = new();
     private readonly HashSet<Inline> _observedInlines = new();
+    private readonly ProTextLayoutCache _layoutCache = new();
+    private readonly ProTextSelectionGeometryCache _selectionGeometryCache = new();
     private ProTextRichContent? _content;
-    private ProTextLayoutSnapshot? _layoutSnapshot;
-    private ProTextLayoutSnapshot? _previousLayoutSnapshot;
-    private ProTextRichCacheKey? _preparedKey;
-    private ProTextPreparedContent? _prepared;
-    private bool _preparedUsesGlobalCache;
-    private ProTextSelectionRect[] _selectionRects = [];
-    private ProTextLayoutSnapshot? _selectionRectSnapshot;
-    private int _selectionRectStart;
-    private int _selectionRectEnd;
-    private double _selectionRectBoundsWidth;
     private IBrush? _selectionBrushSnapshotSource;
     private ProTextBrush? _selectionBrushSnapshot;
     private IBrush? _selectionForegroundSnapshotSource;
@@ -888,7 +879,7 @@ public class ProTextPresenter : Control
                 UpdateCaretBounds();
             }
 
-            _selectionRectSnapshot = null;
+            _selectionGeometryCache.Clear();
             InvalidateVisual();
             return;
         }
@@ -986,11 +977,8 @@ public class ProTextPresenter : Control
     private void InvalidateProText()
     {
         _content = null;
-        _layoutSnapshot = null;
-        _previousLayoutSnapshot = null;
-        _preparedKey = null;
-        _prepared = null;
-        _selectionRectSnapshot = null;
+        _layoutCache.Clear();
+        _selectionGeometryCache.Clear();
         _drawOperation = null;
         InvalidateMeasure();
         InvalidateVisual();
@@ -1031,28 +1019,11 @@ public class ProTextPresenter : Control
 
     private ProTextRichContent CreateTextContent(ProTextRichStyle baseStyle)
     {
-        var text = Text ?? string.Empty;
-        var caretIndex = Math.Clamp(CaretIndex, 0, text.Length);
-        var preeditText = PreeditText;
+        var preeditStyle = string.IsNullOrEmpty(PreeditText)
+            ? null
+            : CreateBaseStyle(Foreground, Avalonia.Media.TextDecorations.Underline);
 
-        if (PasswordChar != default && !RevealPassword)
-        {
-            text = new string(PasswordChar, text.Length);
-        }
-
-        var builder = new ProTextRichContentBuilder(baseStyle);
-
-        if (!string.IsNullOrEmpty(preeditText))
-        {
-            var preeditStyle = CreateBaseStyle(Foreground, Avalonia.Media.TextDecorations.Underline);
-            builder.AppendText(text[..caretIndex], baseStyle);
-            builder.AppendText(preeditText, preeditStyle);
-            builder.AppendText(text[caretIndex..], baseStyle);
-            return builder.Build();
-        }
-
-        builder.AppendText(text, baseStyle);
-        return builder.Build();
+        return ProTextEditableText.CreateContent(CreateEditableTextOptions(), baseStyle, preeditStyle);
     }
 
     private ProTextRichStyle CreateBaseStyle(IBrush? foreground, TextDecorationCollection? textDecorations)
@@ -1071,68 +1042,22 @@ public class ProTextPresenter : Control
 
     private ProTextLayoutSnapshot GetLayoutSnapshot(ProTextRichContent content, double availableWidth)
     {
+        ProTextAvaloniaPlatform.EnsureConfigured();
+
         var maxWidth = ResolveMaxWidth(availableWidth);
         var lineHeight = GetEffectiveLineHeight(content);
         var textWrapping = ProTextAvaloniaAdapter.ToCore(TextWrapping);
         var textTrimming = ProTextAvaloniaAdapter.ToCore(TextTrimming);
 
-        if (_layoutSnapshot is { } snapshot && snapshot.Matches(content, maxWidth, lineHeight, maxLines: 0, textWrapping, textTrimming))
-        {
-            return snapshot;
-        }
-
-        if (_previousLayoutSnapshot is { } previousSnapshot && previousSnapshot.Matches(content, maxWidth, lineHeight, maxLines: 0, textWrapping, textTrimming))
-        {
-            _previousLayoutSnapshot = _layoutSnapshot;
-            _layoutSnapshot = previousSnapshot;
-            return previousSnapshot;
-        }
-
-        var prepared = GetPreparedContent(content);
-
-        snapshot = new ProTextLayoutSnapshot(
+        return _layoutCache.GetSnapshot(
             content,
-            prepared,
-            maxWidth,
-            lineHeight,
-            maxLines: 0,
-            textWrapping,
-            textTrimming);
-
-        _previousLayoutSnapshot = _layoutSnapshot;
-        _layoutSnapshot = snapshot;
-        return snapshot;
-    }
-
-    private ProTextPreparedContent GetPreparedContent(ProTextRichContent content)
-    {
-        var key = new ProTextRichCacheKey(content.LayoutFingerprint);
-        var useGlobalCache = UseGlobalCache;
-
-        if (_prepared is not null && _preparedKey == key && _preparedUsesGlobalCache == useGlobalCache)
-        {
-            return _prepared;
-        }
-
-        var preparedParagraphs = new PreparedRichInline[content.Paragraphs.Count];
-
-        for (var i = 0; i < content.Paragraphs.Count; i++)
-        {
-            var paragraph = content.Paragraphs[i];
-            var items = paragraph.CreateInlineItems();
-
-            preparedParagraphs[i] = useGlobalCache
-                ? ProTextCache.GetOrPrepareRich(new ProTextRichCacheKey(paragraph.LayoutFingerprint), items)
-                : ProTextCache.PrepareRichUncached(items);
-        }
-
-        var prepared = new ProTextPreparedContent(preparedParagraphs);
-
-        _preparedKey = key;
-        _prepared = prepared;
-        _preparedUsesGlobalCache = useGlobalCache;
-
-        return prepared;
+            new ProTextLayoutRequest(
+                maxWidth,
+                lineHeight,
+                MaxLines: 0,
+                textWrapping,
+                textTrimming,
+                UseGlobalCache));
     }
 
     private double ResolveMaxWidth(double availableWidth)
@@ -1205,20 +1130,18 @@ public class ProTextPresenter : Control
 
     private int GetEffectiveCaretIndex()
     {
-        var text = Text ?? string.Empty;
-        var caretIndex = Math.Clamp(CaretIndex, 0, text.Length);
-        var preeditText = PreeditText;
+        return ProTextEditableText.GetEffectiveCaretIndex(CreateEditableTextOptions());
+    }
 
-        if (string.IsNullOrEmpty(preeditText))
-        {
-            return caretIndex;
-        }
-
-        var cursorPosition = PreeditTextCursorPosition is >= 0
-            ? Math.Min(PreeditTextCursorPosition.Value, preeditText.Length)
-            : preeditText.Length;
-
-        return caretIndex + cursorPosition;
+    private ProTextEditableTextOptions CreateEditableTextOptions()
+    {
+        return new ProTextEditableTextOptions(
+            Text,
+            CaretIndex,
+            PreeditText,
+            PreeditTextCursorPosition,
+            PasswordChar,
+            RevealPassword);
     }
 
     private bool ShouldUpdateCaretBounds()
@@ -1325,32 +1248,10 @@ public class ProTextPresenter : Control
             return [];
         }
 
-        var selectionStart = Math.Min(SelectionStart, SelectionEnd);
-        var selectionEnd = Math.Max(SelectionStart, SelectionEnd);
-        var boundsWidth = Bounds.Width;
-
-        if (ReferenceEquals(_selectionRectSnapshot, snapshot)
-            && _selectionRectStart == selectionStart
-            && _selectionRectEnd == selectionEnd
-            && _selectionRectBoundsWidth.Equals(boundsWidth))
-        {
-            return _selectionRects;
-        }
-
-        _selectionRects = BuildSelectionRects(snapshot, selectionStart, selectionEnd);
-        _selectionRectSnapshot = snapshot;
-        _selectionRectStart = selectionStart;
-        _selectionRectEnd = selectionEnd;
-        _selectionRectBoundsWidth = boundsWidth;
-        return _selectionRects;
-    }
-
-    private ProTextSelectionRect[] BuildSelectionRects(ProTextLayoutSnapshot snapshot, int selectionStart, int selectionEnd)
-    {
-        return ProTextLayoutServices.GetSelectionRects(
+        return _selectionGeometryCache.GetSelectionRects(
             snapshot,
-            selectionStart,
-            selectionEnd,
+            SelectionStart,
+            SelectionEnd,
             Bounds.Width,
             ProTextAvaloniaAdapter.ToCore(TextAlignment),
             ProTextAvaloniaAdapter.ToCore(FlowDirection));

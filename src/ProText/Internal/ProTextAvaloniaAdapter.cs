@@ -299,13 +299,14 @@ internal static class ProTextAvaloniaPlatform
 
     public static void EnsureConfigured()
     {
+        ProText.Core.ProTextFontResolver.SetTypefaceResolver(AvaloniaProTextTypefaceResolver.Instance);
+
         if (!Volatile.Read(ref s_configured))
         {
             lock (s_configureSync)
             {
                 if (!s_configured)
                 {
-                    ProText.Core.ProTextFontResolver.SetTypefaceResolver(AvaloniaProTextTypefaceResolver.Instance);
                     Volatile.Write(ref s_configured, true);
                 }
             }
