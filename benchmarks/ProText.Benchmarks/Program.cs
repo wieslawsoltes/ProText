@@ -8,8 +8,8 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using Pretext;
 using ProText.Core;
-using ProTextCacheApi = ProText.ProTextCache;
-using ProTextBlockControl = ProText.ProTextBlock;
+using ProTextCacheApi = ProText.Avalonia.ProTextCache;
+using ProTextBlockControl = ProText.Avalonia.ProTextBlock;
 using SkiaSharp;
 
 BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);

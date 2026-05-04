@@ -5,9 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <PackageId>ProText</PackageId>
-    <Title>ProText</Title>
-    <Description>High-performance Avalonia 12 text controls powered by PretextSharp.</Description>
+    <AssemblyName>ProText.Avalonia</AssemblyName>
+    <RootNamespace>ProText.Avalonia</RootNamespace>
+    <PackageId>ProText.Avalonia</PackageId>
+    <Title>ProText.Avalonia</Title>
+    <Description>High-performance Avalonia 12 text controls powered by ProText.Core and PretextSharp.</Description>
     <PackageTags>Avalonia;Text;TextBlock;TextBox;PretextSharp;SkiaSharp</PackageTags>
   </PropertyGroup>
 

@@ -6,7 +6,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="820"
         x:Class="ProText.Sample.MainWindow"
-        Title="ProText"
+        Title="ProText.Avalonia"
         Width="1280"
         Height="820"
         MinWidth="980"
@@ -15,7 +15,7 @@
         <Border Grid.Row="0" Background="#FFFFFF" BorderBrush="#DDE3EC" BorderThickness="0,0,0,1" Padding="24,18">
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                    <TextBlock Classes="title" Text="ProText" />
+                    <TextBlock Classes="title" Text="ProText.Avalonia" />
                     <TextBlock Classes="caption" Text="Avalonia TextBlock compatibility with PretextSharp layout for plain and rich display text." />
                 </StackPanel>
                 <TextBlock x:Name="CacheStatusText"
@@ -71,7 +71,7 @@
 
                         <Border Grid.Column="1" Classes="panel" Padding="18">
                             <StackPanel Spacing="12">
-                                <TextBlock Classes="sectionTitle" Text="ProText" />
+                                <TextBlock Classes="sectionTitle" Text="ProText.Avalonia" />
                                 <pro:ProTextBlock x:Name="ProText"
                                                   TextWrapping="Wrap"
                                                   LineHeight="23"

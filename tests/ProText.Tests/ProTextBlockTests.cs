@@ -4,9 +4,9 @@ using Avalonia.Controls.Documents;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
-using ProText.Internal;
-using ProTextCacheApi = ProText.ProTextCache;
-using ProTextBlockControl = ProText.ProTextBlock;
+using ProText.Avalonia.Internal;
+using ProTextCacheApi = ProText.Avalonia.ProTextCache;
+using ProTextBlockControl = ProText.Avalonia.ProTextBlock;
 using SkiaSharp;
 
 namespace ProText.Tests;
@@ -192,7 +192,7 @@ public sealed class ProTextBlockTests
     [AvaloniaFact]
     public void Italic_font_style_resolves_italic_or_simulated_skia_typeface()
     {
-        using var resolvedTypeface = ProText.Internal.ProTextFontResolver.ResolveTypeface(
+        using var resolvedTypeface = global::ProText.Avalonia.Internal.ProTextFontResolver.ResolveTypeface(
             FontFamily.Default,
             FontWeight.Normal,
             FontStretch.Normal,

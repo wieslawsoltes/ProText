@@ -4,7 +4,7 @@ using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using ProText.Core;
 
-namespace ProText.Internal;
+namespace ProText.Avalonia.Internal;
 
 internal sealed class ProTextDrawOperation : ICustomDrawOperation
 {

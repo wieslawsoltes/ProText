@@ -2,7 +2,7 @@ using Avalonia.Controls.Documents;
 using Avalonia.Media;
 using ProText.Core;
 
-namespace ProText.Internal;
+namespace ProText.Avalonia.Internal;
 
 internal static class ProTextInlineBuilder
 {

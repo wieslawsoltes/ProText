@@ -7,9 +7,9 @@ using Avalonia.Media;
 using Avalonia.Metadata;
 using Pretext;
 using ProText.Core;
-using ProText.Internal;
+using ProText.Avalonia.Internal;
 
-namespace ProText;
+namespace ProText.Avalonia;
 
 /// <summary>
 /// A high-performance text display control for Avalonia 12 powered by PretextSharp.

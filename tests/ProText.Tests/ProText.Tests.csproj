@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/ProText/ProText.csproj" />
+    <ProjectReference Include="../../src/ProText.Avalonia/ProText.Avalonia.csproj" />
   </ItemGroup>
 
   <ItemGroup>

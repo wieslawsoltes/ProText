@@ -1,4 +1,4 @@
-namespace ProText;
+namespace ProText.Avalonia;
 
 /// <summary>
 /// Captures high-level diagnostic counters for the shared ProText prepared-text cache.

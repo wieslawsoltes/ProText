@@ -5,7 +5,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
-using ProTextPresenterControl = ProText.ProTextPresenter;
+using ProTextPresenterControl = ProText.Avalonia.ProTextPresenter;
 
 namespace ProText.Tests;
 

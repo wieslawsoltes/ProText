@@ -9,9 +9,9 @@ using Avalonia.Media.TextFormatting;
 using Avalonia.Metadata;
 using Avalonia.Threading;
 using ProText.Core;
-using ProText.Internal;
+using ProText.Avalonia.Internal;
 
-namespace ProText;
+namespace ProText.Avalonia;
 
 /// <summary>
 /// Presents editable or selectable text through the same PretextSharp layout and Skia rendering path used by <see cref="ProTextBlock"/>.
@@ -1021,7 +1021,7 @@ public class ProTextPresenter : Control
     {
         var preeditStyle = string.IsNullOrEmpty(PreeditText)
             ? null
-            : CreateBaseStyle(Foreground, Avalonia.Media.TextDecorations.Underline);
+            : CreateBaseStyle(Foreground, global::Avalonia.Media.TextDecorations.Underline);
 
         return ProTextEditableText.CreateContent(CreateEditableTextOptions(), baseStyle, preeditStyle);
     }

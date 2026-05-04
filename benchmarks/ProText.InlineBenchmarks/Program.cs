@@ -6,8 +6,8 @@ using Avalonia.Media;
 using Avalonia.Themes.Fluent;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
-using ProTextBlockControl = ProText.ProTextBlock;
-using ProTextPresenterControl = ProText.ProTextPresenter;
+using ProTextBlockControl = ProText.Avalonia.ProTextBlock;
+using ProTextPresenterControl = ProText.Avalonia.ProTextPresenter;
 
 BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
 

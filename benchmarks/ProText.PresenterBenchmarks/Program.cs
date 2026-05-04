@@ -7,7 +7,7 @@ using Avalonia.Threading;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
-using ProTextPresenterControl = ProText.ProTextPresenter;
+using ProTextPresenterControl = ProText.Avalonia.ProTextPresenter;
 
 BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
 

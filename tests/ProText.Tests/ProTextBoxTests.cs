@@ -4,7 +4,8 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
 using Avalonia.VisualTree;
-using ProTextBoxControl = ProText.ProTextBox;
+using ProTextBoxControl = ProText.Avalonia.ProTextBox;
+using ProTextPresenterControl = ProText.Avalonia.ProTextPresenter;
 
 namespace ProText.Tests;
 
@@ -41,6 +42,6 @@ public sealed class ProTextBoxTests
         window.Show();
 
         Assert.NotNull(window.CaptureRenderedFrame());
-        Assert.Contains(window.GetVisualDescendants(), visual => visual is ProTextPresenter);
+        Assert.Contains(window.GetVisualDescendants(), visual => visual is ProTextPresenterControl);
     }
 }

@@ -4,7 +4,7 @@ using Avalonia.Media;
 using ProText.Core;
 using SkiaSharp;
 
-namespace ProText.Internal;
+namespace ProText.Avalonia.Internal;
 
 internal static class ProTextAvaloniaAdapter
 {

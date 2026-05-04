@@ -5,10 +5,10 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
-using ProTextCacheApi = ProText.ProTextCache;
-using ProTextBlockControl = ProText.ProTextBlock;
-using ProTextBoxControl = ProText.ProTextBox;
-using ProTextPresenterControl = ProText.ProTextPresenter;
+using ProTextCacheApi = ProText.Avalonia.ProTextCache;
+using ProTextBlockControl = ProText.Avalonia.ProTextBlock;
+using ProTextBoxControl = ProText.Avalonia.ProTextBox;
+using ProTextPresenterControl = ProText.Avalonia.ProTextPresenter;
 
 namespace ProText.Sample;
 
@@ -130,7 +130,7 @@ public partial class MainWindow : Window
             {
                 Text = text,
                 Foreground = Brushes.DimGray,
-                Margin = new Avalonia.Thickness(0, 0, 10, 8),
+                Margin = new global::Avalonia.Thickness(0, 0, 10, 8),
                 TextWrapping = TextWrapping.Wrap,
                 MaxLines = 2
             });
@@ -140,7 +140,7 @@ public partial class MainWindow : Window
                 Text = text,
                 Background = Brushes.White,
                 Foreground = Brushes.DimGray,
-                Margin = new Avalonia.Thickness(0, 0, 10, 8),
+                Margin = new global::Avalonia.Thickness(0, 0, 10, 8),
                 TextWrapping = TextWrapping.Wrap,
                 MaxLines = 2
             });

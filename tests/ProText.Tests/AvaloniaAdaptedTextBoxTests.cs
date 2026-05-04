@@ -7,8 +7,8 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.VisualTree;
-using ProText;
-using ProTextBoxControl = ProText.ProTextBox;
+using ProTextBoxControl = ProText.Avalonia.ProTextBox;
+using ProTextPresenterControl = ProText.Avalonia.ProTextPresenter;
 
 namespace ProText.Tests;
 
@@ -382,7 +382,7 @@ public sealed class AvaloniaAdaptedTextBoxTests
         var window = new Window { Width = 300, Height = 90, Content = target };
         window.Show();
 
-        var presenter = target.GetVisualDescendants().OfType<ProTextPresenter>().Single();
+        var presenter = target.GetVisualDescendants().OfType<ProTextPresenterControl>().Single();
         var start = ToWindowPoint(presenter, window, presenter.GetCaretBounds(0));
         var end = ToWindowPoint(presenter, window, presenter.GetCaretBounds(4));
 
@@ -574,7 +574,7 @@ public sealed class AvaloniaAdaptedTextBoxTests
         });
     }
 
-    private static Point ToWindowPoint(ProTextPresenter presenter, Window window, Rect caretBounds)
+    private static Point ToWindowPoint(ProTextPresenterControl presenter, Window window, Rect caretBounds)
     {
         var point = new Point(caretBounds.X + 1, caretBounds.Y + Math.Max(1, caretBounds.Height / 2));
         return presenter.TranslatePoint(point, window) ?? point;

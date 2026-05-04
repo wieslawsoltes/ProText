@@ -1,8 +1,8 @@
 using Pretext;
 using ProText.Core;
-using ProText.Internal;
+using ProText.Avalonia.Internal;
 
-namespace ProText;
+namespace ProText.Avalonia;
 
 /// <summary>
 /// Provides process-wide cache controls for <see cref="ProTextBlock"/>.

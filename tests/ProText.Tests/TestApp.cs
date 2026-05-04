@@ -12,7 +12,7 @@ public sealed class TestApp : Application
         Styles.Add(new FluentTheme());
         Resources.MergedDictionaries.Add(new ResourceInclude(new Uri("avares://ProText.Tests"))
         {
-            Source = new Uri("avares://ProText/Themes/Fluent.axaml")
+            Source = new Uri("avares://ProText.Avalonia/Themes/Fluent.axaml")
         });
     }
 

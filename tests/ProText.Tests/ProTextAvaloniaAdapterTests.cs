@@ -1,6 +1,6 @@
 using Avalonia.Media;
 using ProText.Core;
-using ProText.Internal;
+using ProText.Avalonia.Internal;
 
 namespace ProText.Tests;
 

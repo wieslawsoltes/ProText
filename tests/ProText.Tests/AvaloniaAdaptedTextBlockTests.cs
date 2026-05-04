@@ -5,7 +5,7 @@ using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Layout;
 using Avalonia.Media;
-using ProTextBlockControl = ProText.ProTextBlock;
+using ProTextBlockControl = ProText.Avalonia.ProTextBlock;
 
 namespace ProText.Tests;
 

@@ -10,8 +10,8 @@ using Avalonia.VisualTree;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
-using ProTextBoxControl = ProText.ProTextBox;
-using ProTextPresenterControl = ProText.ProTextPresenter;
+using ProTextBoxControl = ProText.Avalonia.ProTextBox;
+using ProTextPresenterControl = ProText.Avalonia.ProTextPresenter;
 
 BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
 
@@ -22,7 +22,7 @@ internal sealed class TextBoxBenchmarkApp : Application
         Styles.Add(new FluentTheme());
         Resources.MergedDictionaries.Add(new ResourceInclude(new Uri("avares://ProText.TextBoxBenchmarks"))
         {
-            Source = new Uri("avares://ProText/Themes/Fluent.axaml")
+            Source = new Uri("avares://ProText.Avalonia/Themes/Fluent.axaml")
         });
     }
 }

@@ -11,7 +11,7 @@ using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
 using Avalonia.Metadata;
 
-namespace ProText;
+namespace ProText.Avalonia;
 
 /// <summary>
 /// A lightweight TextBox-like control that presents text through <see cref="ProTextPresenter"/>.

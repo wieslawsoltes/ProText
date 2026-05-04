@@ -10,7 +10,7 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/ProText.Core/ProText.Core.csproj" />
-    <Project Path="src/ProText/ProText.csproj" />
+    <Project Path="src/ProText.Avalonia/ProText.Avalonia.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ProText.Tests/ProText.Tests.csproj" />
