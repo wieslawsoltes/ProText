@@ -5,6 +5,7 @@ using Avalonia.Controls.Documents;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.TextFormatting;
 using Avalonia.Metadata;
 using Avalonia.Threading;
 using Pretext;
@@ -216,6 +217,8 @@ public class ProTextPresenter : Control
             (control, value) => control.Inlines = value);
 
     private InlineCollection? _inlines;
+    private readonly HashSet<InlineCollection> _observedInlineCollections = new();
+    private readonly HashSet<Inline> _observedInlines = new();
     private ProTextRichContent? _content;
     private ProTextLayoutSnapshot? _layoutSnapshot;
     private ProTextLayoutSnapshot? _previousLayoutSnapshot;
@@ -291,7 +294,7 @@ public class ProTextPresenter : Control
     public ProTextPresenter()
     {
         _inlines = new InlineCollection();
-        _inlines.Invalidated += OnInlinesInvalidated;
+        AttachInlineCollection(_inlines);
     }
 
     /// <summary>
@@ -502,17 +505,10 @@ public class ProTextPresenter : Control
                 return;
             }
 
-            if (_inlines is not null)
-            {
-                _inlines.Invalidated -= OnInlinesInvalidated;
-            }
-
-            if (value is not null)
-            {
-                value.Invalidated += OnInlinesInvalidated;
-            }
+            DetachInlineObservers();
 
             SetAndRaise(InlinesProperty, ref _inlines, value);
+            AttachInlineCollection(value);
             InvalidateProText();
         }
     }
@@ -652,6 +648,46 @@ public class ProTextPresenter : Control
     }
 
     /// <summary>
+    /// Gets the next caret hit relative to the current caret index.
+    /// </summary>
+    public CharacterHit GetNextCharacterHit(LogicalDirection direction)
+    {
+        var textLength = GetCurrentTextLength();
+        var index = direction == LogicalDirection.Forward
+            ? Math.Min(textLength, CaretIndex + 1)
+            : Math.Max(0, CaretIndex - 1);
+
+        return new CharacterHit(index, 0);
+    }
+
+    /// <summary>
+    /// Moves the caret one logical character in the requested direction.
+    /// </summary>
+    public void MoveCaretHorizontal(LogicalDirection direction)
+    {
+        MoveCaretToTextPosition(GetNextCharacterHit(direction).FirstCharacterIndex);
+    }
+
+    /// <summary>
+    /// Moves the caret one rendered line in the requested direction.
+    /// </summary>
+    public void MoveCaretVertical(LogicalDirection direction)
+    {
+        if (!TryCreateRichContent(out var content))
+        {
+            return;
+        }
+
+        var snapshot = GetLayoutSnapshot(content, Bounds.Width > 0 ? Bounds.Width : double.PositiveInfinity);
+        var bounds = GetCaretBounds(snapshot, Math.Clamp(GetEffectiveCaretIndex(), 0, content.Text.Length));
+        var y = direction == LogicalDirection.Forward
+            ? bounds.Y + snapshot.LineHeight + snapshot.LineHeight / 2
+            : bounds.Y - snapshot.LineHeight / 2;
+        var index = GetCharacterIndex(snapshot, new Point(bounds.X, y));
+        MoveCaretToTextPosition(index);
+    }
+
+    /// <summary>
     /// Gets the text index nearest a point in presenter coordinates.
     /// </summary>
     public int GetCharacterIndex(Point point)
@@ -690,6 +726,40 @@ public class ProTextPresenter : Control
         }
 
         return GetLayoutSnapshot(content, availableWidth).Size;
+    }
+
+    /// <summary>
+    /// Gets the number of materialized layout lines, or -1 before layout is available.
+    /// </summary>
+    public int GetLineCount()
+    {
+        if (!TryCreateRichContent(out var content))
+        {
+            return -1;
+        }
+
+        return GetLayoutSnapshot(content, Bounds.Width > 0 ? Bounds.Width : double.PositiveInfinity).LineCount;
+    }
+
+    /// <summary>
+    /// Gets rendered bounds for a materialized layout line.
+    /// </summary>
+    public Rect GetLineBounds(int lineIndex)
+    {
+        if (!TryCreateRichContent(out var content))
+        {
+            return default;
+        }
+
+        var snapshot = GetLayoutSnapshot(content, Bounds.Width > 0 ? Bounds.Width : double.PositiveInfinity);
+
+        if (snapshot.LineCount == 0)
+        {
+            return default;
+        }
+
+        lineIndex = Math.Clamp(lineIndex, 0, snapshot.LineCount - 1);
+        return new Rect(0, lineIndex * snapshot.LineHeight, snapshot.Width, snapshot.LineHeight);
     }
 
     /// <inheritdoc />
@@ -837,7 +907,60 @@ public class ProTextPresenter : Control
 
     private void OnInlinesInvalidated(object? sender, EventArgs e)
     {
+        DetachInlineObservers();
+        AttachInlineCollection(_inlines);
         InvalidateProText();
+    }
+
+    private void OnInlinePropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        InvalidateProText();
+    }
+
+    private void AttachInlineCollection(InlineCollection? collection)
+    {
+        if (collection is null || !_observedInlineCollections.Add(collection))
+        {
+            return;
+        }
+
+        collection.Invalidated += OnInlinesInvalidated;
+
+        foreach (var inline in collection)
+        {
+            AttachInline(inline);
+        }
+    }
+
+    private void AttachInline(Inline inline)
+    {
+        if (!_observedInlines.Add(inline))
+        {
+            return;
+        }
+
+        inline.PropertyChanged += OnInlinePropertyChanged;
+
+        if (inline is Span span)
+        {
+            AttachInlineCollection(span.Inlines);
+        }
+    }
+
+    private void DetachInlineObservers()
+    {
+        foreach (var collection in _observedInlineCollections)
+        {
+            collection.Invalidated -= OnInlinesInvalidated;
+        }
+
+        foreach (var inline in _observedInlines)
+        {
+            inline.PropertyChanged -= OnInlinePropertyChanged;
+        }
+
+        _observedInlineCollections.Clear();
+        _observedInlines.Clear();
     }
 
     private void InvalidateProText()

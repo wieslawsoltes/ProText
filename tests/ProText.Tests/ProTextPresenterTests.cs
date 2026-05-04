@@ -4,6 +4,7 @@ using Avalonia.Controls.Documents;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Media;
+using Avalonia.Media.TextFormatting;
 using ProTextPresenterControl = ProText.ProTextPresenter;
 
 namespace ProText.Tests;
@@ -74,6 +75,34 @@ public sealed class ProTextPresenterTests
     }
 
     [AvaloniaFact]
+    public void Presenter_moves_caret_horizontally_without_textlayout()
+    {
+        var presenter = CreatePresenter("abcdef");
+        presenter.CaretIndex = 2;
+
+        presenter.MoveCaretHorizontal(LogicalDirection.Forward);
+        Assert.Equal(3, presenter.CaretIndex);
+
+        var previous = presenter.GetNextCharacterHit(LogicalDirection.Backward);
+        Assert.Equal(2, previous.FirstCharacterIndex);
+    }
+
+    [AvaloniaFact]
+    public void Presenter_moves_caret_vertically_on_pretext_layout()
+    {
+        var presenter = CreatePresenter("one\ntwo\nthree");
+        presenter.TextWrapping = TextWrapping.Wrap;
+        presenter.CaretIndex = 1;
+
+        presenter.Measure(new Size(240, double.PositiveInfinity));
+        presenter.Arrange(new Rect(presenter.DesiredSize));
+        presenter.MoveCaretVertical(LogicalDirection.Forward);
+
+        Assert.True(presenter.CaretIndex > 1);
+        Assert.Equal(3, presenter.GetLineCount());
+    }
+
+    [AvaloniaFact]
     public void Presenter_preedit_text_participates_in_measurement()
     {
         var normal = CreatePresenter("input");
@@ -134,6 +163,28 @@ public sealed class ProTextPresenterTests
 
         Assert.NotNull(window.CaptureRenderedFrame());
         Assert.True(presenter.DesiredSize.Width > 0);
+    }
+
+    [AvaloniaFact]
+    public void Presenter_observes_nested_inline_changes()
+    {
+        var run = new Run("short");
+        var presenter = new ProTextPresenterControl
+        {
+            FontSize = 18,
+            LineHeight = 26,
+            TextWrapping = TextWrapping.NoWrap,
+            Foreground = Brushes.Black
+        };
+        presenter.Inlines!.Add(new Bold { Inlines = { run } });
+
+        presenter.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var shortWidth = presenter.DesiredSize.Width;
+
+        run.Text = "a much longer nested inline run";
+        presenter.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+
+        Assert.True(presenter.DesiredSize.Width > shortWidth);
     }
 
     [AvaloniaFact]
