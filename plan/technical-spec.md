@@ -2,7 +2,7 @@
 
 ## Scope
 
-ProText is a package of high-performance Avalonia text controls powered by PretextSharp. Its display control, `ProTextBlock`, preserves `TextBlock` source compatibility wherever Avalonia exposes public APIs.
+ProText is a package of high-performance Avalonia text controls powered by PretextSharp. Its display control, `ProTextBlock`, preserves `TextBlock` source compatibility wherever Avalonia exposes public APIs. The implementation is split into `ProText.Core`, which contains the reusable Pretext/Skia text engine, and `ProText`, which adapts that engine to Avalonia controls, properties, inlines, brushes, fonts, and custom drawing.
 
 ## Source Baseline
 
@@ -87,14 +87,14 @@ The Pretext path is enabled when `UsePretextRendering == true` and the content c
 
 When enabled:
 
-1. Flatten plain text or inline content into styled `ProTextRichContent` using shared `ProTextInlineBuilder` and `ProTextRichContentBuilder` helpers.
-2. Convert Avalonia font properties to an extended Pretext font string that includes ProText tracking, stretch, and feature markers.
-3. Retrieve or prepare `PreparedRichInline` instances through `PretextLayout.PrepareRichInline`.
+1. Flatten plain text or inline content into styled `ProTextRichContent`. Avalonia inlines and brushes are converted by the Avalonia adapter; the rich content model itself is framework-neutral.
+2. Convert font properties to an extended Pretext font string that includes ProText tracking, stretch, and feature markers.
+3. Retrieve or prepare `PreparedRichInline` instances through the bounded `ProText.Core` cache and `PretextLayout.PrepareRichInline`.
 4. Measure by walking `RichInlineLineRange` data and only materialize fragment strings for retained visible lines.
 5. Render with an Avalonia `ICustomDrawOperation` and `ISkiaSharpApiLeaseFeature` when the active renderer is Skia.
-6. Draw styled fragments with per-run fonts, Skia font fallback, brushes, letter spacing, and decorations.
+6. Delegate actual `SKCanvas` text drawing to the framework-neutral `ProTextSkiaRenderer`, including per-run fonts, Skia font fallback, brushes, letter spacing, and decorations.
 
-`ProTextPresenter` additionally uses text-index metadata on retained layout fragments for caret bounds, hit testing, and selection rectangles. These operations still use the Pretext materialized line data and Skia-backed text measurement helpers; they do not call Avalonia `TextLayout` or `TextPresenter` internals.
+`ProTextPresenter` additionally uses text-index metadata on retained layout fragments for caret bounds, hit testing, and selection rectangles. These operations are implemented in `ProText.Core` geometry helpers over neutral point/rect types and do not call Avalonia `TextLayout` or `TextPresenter` internals.
 
 Render operations retain value snapshots of foreground brushes, gradient stops, and text decorations instead of live Avalonia objects. This keeps the retained custom drawing data stable while the compositor scrolls or reuses render data.
 
@@ -107,7 +107,7 @@ No Avalonia TextBlock fallback:
 
 ## Cache Strategy
 
-Pretext already caches font states and segment measurements internally. `ProTextBlock` adds a global prepared-text/rich-inline cache above it to share prepared text across controls and layout passes.
+Pretext already caches font states and segment measurements internally. `ProText.Core` adds a global prepared-text/rich-inline cache above it to share prepared text across controls, presenters, and non-Avalonia hosts.
 
 Cache key fields:
 
@@ -118,6 +118,8 @@ Cache key fields:
 Prepared text cache keys intentionally use layout-affecting fingerprints only. Control-local layout snapshots additionally include render fingerprints for foreground brushes and text decorations so visual-only changes repaint correctly without fragmenting the global Pretext preparation cache.
 
 Layout is width-dependent, so prepared text is cached globally while layout results are cached on the control instance for the current width and effective line height. This avoids unbounded global width-key growth and lets repeated measure/render passes stay allocation-light.
+
+The public Avalonia `ProTextCache` type is a source-compatible facade over `ProText.Core.ProTextCoreCache`; it also ensures the Avalonia font resolver is installed before controls prepare or measure text.
 
 Default behavior:
 
@@ -153,7 +155,8 @@ Known v1 limitations:
 
 ## Projects
 
-- `src/ProText`: control library
+- `src/ProText.Core`: framework-neutral rich content, layout, cache, font fallback, selection geometry, and Skia rendering engine
+- `src/ProText`: Avalonia control library, theme resources, and Avalonia adapters over `ProText.Core`
 - `samples/ProText.Sample`: Avalonia desktop sample comparing `TextBlock`, `ProTextBlock`, inline content, and `ProTextPresenter`
 - `tests/ProText.Tests`: xUnit plus Avalonia headless render tests
 - `benchmarks/ProText.Benchmarks`: BenchmarkDotNet layout/render benchmarks
@@ -166,7 +169,7 @@ Known v1 limitations:
 - `dotnet restore ProText.slnx`
 - `dotnet build ProText.slnx`
 - `dotnet test tests/ProText.Tests/ProText.Tests.csproj`
-- `dotnet run -c Release --project benchmarks/ProText.Benchmarks/ProText.Benchmarks.csproj -- --filter *`
+- `dotnet run -c Release --project benchmarks/ProText.Benchmarks/ProText.Benchmarks.csproj -- --list flat`
 - `dotnet run -c Release --project benchmarks/ProText.InlineBenchmarks/ProText.InlineBenchmarks.csproj -- --list flat`
 - `dotnet run -c Release --project benchmarks/ProText.PresenterBenchmarks/ProText.PresenterBenchmarks.csproj -- --list flat`
 - `dotnet run -c Release --project benchmarks/ProText.TextBoxBenchmarks/ProText.TextBoxBenchmarks.csproj -- --list flat`

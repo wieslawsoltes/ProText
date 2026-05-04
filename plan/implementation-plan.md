@@ -6,6 +6,8 @@
 - Target `net10.0` for the library and developer tooling in this workspace.
 - Use central package management for Avalonia, PretextSharp, SkiaSharp, xUnit, Avalonia headless testing, and BenchmarkDotNet.
 - Enable nullable reference types and implicit usings.
+- Maintain `src/ProText.Core` as the reusable Pretext/Skia text engine with no Avalonia dependency.
+- Maintain `src/ProText` as the Avalonia controls, inline/style/font adapter, theme, and custom draw operation host.
 
 ## 2. Control Library
 
@@ -13,19 +15,19 @@
 - Add styled properties for `UseGlobalCache`, `UsePretextRendering`, `PretextWhiteSpace`, `PretextWordBreak`, and `PretextLineHeightMultiplier`.
 - Override `MeasureOverride`, `ArrangeOverride`, and `Render`.
 - Use a Pretext rich-inline path for plain text, styled runs, trimming, decorations, letter spacing, font-feature cache identity, and solid or gradient foreground brushes.
-- Extract shared inline helpers for `Run`, `Span`, `Bold`, `Italic`, `Underline`, `LineBreak`, immutable brush snapshots, decoration snapshots, rich paragraphs, and logical text offsets.
+- Keep Avalonia inline helpers for `Run`, `Span`, `Bold`, `Italic`, `Underline`, and `LineBreak`, but emit framework-neutral core rich paragraphs, immutable brush snapshots, decoration snapshots, and logical text offsets.
 - Add `ProTextPresenter`, derived from `Avalonia.Controls.Control`, with presenter-style text, inline, selection, caret, preedit, password, hit-test, and measurement APIs backed by the shared Pretext rich-content and layout snapshot pipeline.
 - Add `ProTextBox`, derived from `Avalonia.Controls.Primitives.TemplatedControl`, with a copied Avalonia Fluent TextBox theme retargeted to host `ProTextPresenter` in the template.
 - Keep all text rendering in the Pretext-powered path; do not add or use an internal Avalonia `TextBlock` fallback visual.
-- Add `ProTextCache` for shared prepared text cache management and diagnostics.
-- Add small internal helper types for font descriptor building, layout snapshots, and Skia drawing.
+- Add `ProTextCache` as the Avalonia facade over `ProText.Core` shared prepared text cache management and diagnostics.
+- Keep font descriptor building, layout snapshots, selection geometry, render font cache, and Skia drawing in `ProText.Core`.
 
 ## 3. Rendering
 
 - Use `PretextLayout.PrepareRichInline` for cacheable text preparation.
 - Use `PretextLayout.LayoutNextRichInlineLineRange` during measure/layout.
 - Materialize only visible rich inline fragments for render.
-- Draw through an Avalonia `ICustomDrawOperation` using `ISkiaSharpApiLeaseFeature`, per-run `SKFont`, Skia shaders for gradients, manual letter spacing, and Skia decoration strokes.
+- Draw through a thin Avalonia `ICustomDrawOperation` using `ISkiaSharpApiLeaseFeature`; delegate per-run `SKFont`, Skia shaders for gradients, manual letter spacing, and Skia decoration strokes to the core Skia renderer.
 - Use the direct Pretext draw operation for text content in Skia-backed render contexts, including multilingual text through Pretext measurement and Skia font fallback.
 
 ## 4. Sample App
