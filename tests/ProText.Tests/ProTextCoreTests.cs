@@ -1,6 +1,7 @@
 using Pretext;
 using ProText.Core;
 using SkiaSharp;
+using System.Globalization;
 
 namespace ProText.Tests;
 
@@ -188,7 +189,227 @@ public sealed class ProTextCoreTests
         }
     }
 
+    [Fact]
+    public void Layout_cache_returns_same_snapshot_for_same_request()
+    {
+        ProTextCoreCache.Clear();
+        var cache = new ProTextLayoutCache();
+        var content = CreateContent("cache hit text", CreateStyle(fontSize: 12, letterSpacing: 0));
+        var request = CreateLayoutRequest(maxWidth: 160);
+
+        var first = cache.GetSnapshot(content, request);
+        var second = cache.GetSnapshot(content, request);
+
+        Assert.Same(first, second);
+    }
+
+    [Fact]
+    public void Layout_cache_reuses_previous_width_snapshot_when_width_toggles()
+    {
+        ProTextCoreCache.Clear();
+        var cache = new ProTextLayoutCache();
+        var content = CreateContent("alpha beta gamma delta", CreateStyle(fontSize: 12, letterSpacing: 0));
+
+        var narrow = cache.GetSnapshot(content, CreateLayoutRequest(maxWidth: 80));
+        var wide = cache.GetSnapshot(content, CreateLayoutRequest(maxWidth: 180));
+        var narrowAgain = cache.GetSnapshot(content, CreateLayoutRequest(maxWidth: 80));
+
+        Assert.NotSame(narrow, wide);
+        Assert.Same(narrow, narrowAgain);
+    }
+
+    [Fact]
+    public void Layout_cache_render_only_changes_remap_styles_without_preparing_again()
+    {
+        ProTextCoreCache.Clear();
+        var cache = new ProTextLayoutCache();
+        var blackStyle = CreateStyle(fontSize: 12, letterSpacing: 0, ProTextColor.FromRgb(0, 0, 0));
+        var redStyle = CreateStyle(fontSize: 12, letterSpacing: 0, ProTextColor.FromRgb(255, 0, 0));
+        var blackContent = CreateContent("same layout", blackStyle);
+        var redContent = CreateContent("same layout", redStyle);
+        var request = CreateLayoutRequest(maxWidth: 200);
+
+        var blackSnapshot = cache.GetSnapshot(blackContent, request);
+        var counters = ProTextCoreCache.GetSnapshot();
+        var redSnapshot = cache.GetSnapshot(redContent, request);
+        var countersAfterRenderChange = ProTextCoreCache.GetSnapshot();
+
+        Assert.NotSame(blackSnapshot, redSnapshot);
+        Assert.Equal(blackSnapshot.Width, redSnapshot.Width);
+        Assert.Equal(counters.Misses, countersAfterRenderChange.Misses);
+        Assert.Equal(redStyle.Foreground?.Fingerprint, redSnapshot.Lines[0].Fragments[0].Style.Foreground?.Fingerprint);
+    }
+
+    [Fact]
+    public void Layout_cache_local_prepared_content_does_not_increment_global_cache_counters()
+    {
+        ProTextCoreCache.Clear();
+        var cache = new ProTextLayoutCache();
+        var content = CreateContent("local cache text", CreateStyle(fontSize: 12, letterSpacing: 0));
+        var before = ProTextCoreCache.GetSnapshot();
+
+        var first = cache.GetSnapshot(content, CreateLayoutRequest(maxWidth: 160, useGlobalCache: false));
+        var second = cache.GetSnapshot(content, CreateLayoutRequest(maxWidth: 160, useGlobalCache: false));
+        var after = ProTextCoreCache.GetSnapshot();
+
+        Assert.Same(first, second);
+        Assert.Equal(before.Count, after.Count);
+        Assert.Equal(before.Hits, after.Hits);
+        Assert.Equal(before.Misses, after.Misses);
+    }
+
+    [Fact]
+    public void Layout_cache_render_only_change_remaps_trimmed_ellipsis_style()
+    {
+        ProTextCoreCache.Clear();
+        var cache = new ProTextLayoutCache();
+        var blackStyle = CreateStyle(fontSize: 12, letterSpacing: 0, ProTextColor.FromRgb(0, 0, 0));
+        var redStyle = CreateStyle(fontSize: 12, letterSpacing: 0, ProTextColor.FromRgb(255, 0, 0));
+        var request = new ProTextLayoutRequest(
+            MaxWidth: 16,
+            LineHeight: 16,
+            MaxLines: 0,
+            ProTextWrapping.NoWrap,
+            ProTextTrimming.CharacterEllipsis,
+            UseGlobalCache: true);
+
+        cache.GetSnapshot(CreateContent("abcdef", blackStyle), request);
+        var redSnapshot = cache.GetSnapshot(CreateContent("abcdef", redStyle), request);
+        var ellipsis = redSnapshot.Lines.Single().Fragments.Last();
+
+        Assert.Equal("…", ellipsis.Text);
+        Assert.Equal(redStyle.Foreground?.Fingerprint, ellipsis.Style.Foreground?.Fingerprint);
+    }
+
+    [Fact]
+    public void Selection_geometry_cache_reuses_reversed_selection()
+    {
+        var snapshot = CreateSnapshot("selection geometry", maxWidth: 200);
+        var cache = new ProTextSelectionGeometryCache();
+
+        var forward = cache.GetSelectionRects(
+            snapshot,
+            selectionStart: 0,
+            selectionEnd: 9,
+            boundsWidth: 200,
+            ProTextTextAlignment.Left,
+            ProTextFlowDirection.LeftToRight);
+        var reversed = cache.GetSelectionRects(
+            snapshot,
+            selectionStart: 9,
+            selectionEnd: 0,
+            boundsWidth: 200,
+            ProTextTextAlignment.Left,
+            ProTextFlowDirection.LeftToRight);
+
+        Assert.NotEmpty(forward);
+        Assert.Same(forward, reversed);
+    }
+
+    [Fact]
+    public void Selection_geometry_cache_invalidates_for_alignment_width_and_flow()
+    {
+        var snapshot = CreateSnapshot("selection geometry", maxWidth: 200);
+        var cache = new ProTextSelectionGeometryCache();
+
+        var left = cache.GetSelectionRects(snapshot, 0, 9, 200, ProTextTextAlignment.Left, ProTextFlowDirection.LeftToRight);
+        var centered = cache.GetSelectionRects(snapshot, 0, 9, 200, ProTextTextAlignment.Center, ProTextFlowDirection.LeftToRight);
+        var wider = cache.GetSelectionRects(snapshot, 0, 9, 260, ProTextTextAlignment.Center, ProTextFlowDirection.LeftToRight);
+        var rtl = cache.GetSelectionRects(snapshot, 0, 9, 260, ProTextTextAlignment.Center, ProTextFlowDirection.RightToLeft);
+
+        Assert.NotSame(left, centered);
+        Assert.NotSame(centered, wider);
+        Assert.NotSame(wider, rtl);
+    }
+
+    [Fact]
+    public void Editable_text_masks_password_and_preedit_text()
+    {
+        var snapshot = ProTextEditableText.CreateSnapshot(new ProTextEditableTextOptions(
+            "secret",
+            CaretIndex: 3,
+            PreeditText: "ime",
+            PreeditTextCursorPosition: 2,
+            PasswordChar: '*',
+            RevealPassword: false));
+
+        Assert.Equal("******", snapshot.DisplayText);
+        Assert.Equal("***", snapshot.DisplayPreeditText);
+        Assert.Equal(5, snapshot.EffectiveCaretIndex);
+        Assert.Equal("secret", snapshot.SourceText);
+    }
+
+    [Fact]
+    public void Editable_text_content_inserts_preedit_run_at_caret()
+    {
+        var baseStyle = CreateStyle(fontSize: 12, letterSpacing: 0, ProTextColor.FromRgb(0, 0, 0));
+        var preeditStyle = CreateStyle(fontSize: 12, letterSpacing: 0, ProTextColor.FromRgb(255, 0, 0));
+
+        var content = ProTextEditableText.CreateContent(
+            new ProTextEditableTextOptions(
+                "abcd",
+                CaretIndex: 2,
+                PreeditText: "XY",
+                PreeditTextCursorPosition: null,
+                PasswordChar: default,
+                RevealPassword: false),
+            baseStyle,
+            preeditStyle);
+
+        var runs = content.Paragraphs[0].Runs;
+        Assert.Equal(["ab", "XY", "cd"], runs.Select(static run => run.Text).ToArray());
+        Assert.Equal(preeditStyle.Foreground?.Fingerprint, runs[1].Style.Foreground?.Fingerprint);
+        Assert.Equal(4, ProTextEditableText.GetEffectiveCaretIndex(new ProTextEditableTextOptions("abcd", 2, "XY", null, default, false)));
+    }
+
+    [Fact]
+    public void Brush_fingerprints_are_culture_invariant_and_precise()
+    {
+        var previousCulture = CultureInfo.CurrentCulture;
+
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("pl-PL");
+
+            var brush = new ProTextLinearGradientBrush(
+                [
+                    new ProTextGradientStop(ProTextColor.FromRgb(255, 0, 0), 0.125),
+                    new ProTextGradientStop(ProTextColor.FromRgb(0, 0, 255), 0.875)
+                ],
+                opacity: 0.33333333333333331,
+                ProTextGradientSpreadMethod.Pad,
+                new ProTextRelativePoint(0.125, 0.25, ProTextRelativeUnit.Relative),
+                new ProTextRelativePoint(0.875, 1, ProTextRelativeUnit.Relative));
+
+            Assert.Contains("0.3333333333333333", brush.Fingerprint, StringComparison.Ordinal);
+            Assert.Contains("0.125", brush.Fingerprint, StringComparison.Ordinal);
+            Assert.DoesNotContain("0,125", brush.Fingerprint, StringComparison.Ordinal);
+
+            var descriptor = ProTextFontDescriptor.Create(
+                ProTextFontDescriptor.DefaultFontFamily,
+                size: 12.0004,
+                ProTextFontStyle.Normal,
+                weight: 400,
+                stretch: 5,
+                letterSpacing: 0.0004,
+                fontFeaturesFingerprint: "none");
+
+            Assert.Contains("12.0004px", descriptor, StringComparison.Ordinal);
+            Assert.Contains("ptb-ls=0.0004", descriptor, StringComparison.Ordinal);
+            Assert.DoesNotContain("12,0004px", descriptor, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previousCulture;
+        }
+    }
+
     private static ProTextRichStyle CreateStyle(double fontSize, double letterSpacing)
+    {
+        return CreateStyle(fontSize, letterSpacing, ProTextColor.FromRgb(0, 0, 0));
+    }
+
+    private static ProTextRichStyle CreateStyle(double fontSize, double letterSpacing, ProTextColor foreground)
     {
         return new ProTextRichStyle(
             ProTextFontDescriptor.DefaultFontFamily,
@@ -196,10 +417,34 @@ public sealed class ProTextCoreTests
             ProTextFontStyle.Normal,
             400,
             5,
-            new ProTextSolidBrush(ProTextColor.FromRgb(0, 0, 0), 1),
+            new ProTextSolidBrush(foreground, 1),
             textDecorations: [],
             fontFeaturesFingerprint: "none",
             letterSpacing);
+    }
+
+    private static ProTextRichContent CreateContent(string text, ProTextRichStyle style)
+    {
+        var builder = new ProTextRichContentBuilder(style);
+        builder.AppendText(text, style);
+        return builder.Build();
+    }
+
+    private static ProTextLayoutSnapshot CreateSnapshot(string text, double maxWidth)
+    {
+        var content = CreateContent(text, CreateStyle(fontSize: 12, letterSpacing: 0));
+        return new ProTextLayoutCache().GetSnapshot(content, CreateLayoutRequest(maxWidth));
+    }
+
+    private static ProTextLayoutRequest CreateLayoutRequest(double maxWidth, bool useGlobalCache = true)
+    {
+        return new ProTextLayoutRequest(
+            maxWidth,
+            LineHeight: 16,
+            MaxLines: 0,
+            ProTextWrapping.Wrap,
+            ProTextTrimming.None,
+            useGlobalCache);
     }
 
     private sealed class SharedTypefaceResolver : IProTextTypefaceResolver
