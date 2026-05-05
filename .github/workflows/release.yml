@@ -26,9 +26,7 @@ env:
   DOTNET_VERSION: '10.0.x'
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
-  SOLUTION_FILE: ProText.slnx
-  TEST_PROJECT: tests/ProText.Tests/ProText.Tests.csproj
-  PACKAGE_PROJECT: src/ProText/ProText.csproj
+  SOLUTION_FILE: ProText.CI.slnx
 
 jobs:
   validate:
@@ -55,7 +53,12 @@ jobs:
         run: dotnet build ${{ env.SOLUTION_FILE }} -c Release --no-restore -warnaserror /p:ContinuousIntegrationBuild=true
 
       - name: Test
-        run: dotnet test ${{ env.TEST_PROJECT }} -c Release --no-build --logger "trx;LogFileName=protext-tests.trx" --results-directory ./artifacts/test-results
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet test tests/ProText.Tests/ProText.Tests.csproj -c Release --no-build --logger "trx;LogFileName=protext-tests.trx" --results-directory ./artifacts/test-results
+          dotnet test tests/ProText.Uno.Tests/ProText.Uno.Tests.csproj -c Release --no-build --logger "trx;LogFileName=protext-uno-tests.trx" --results-directory ./artifacts/test-results
+          dotnet test tests/ProText.MAUI.Tests/ProText.MAUI.Tests.csproj -c Release --no-build --logger "trx;LogFileName=protext-maui-tests.trx" --results-directory ./artifacts/test-results
 
       - name: Upload test results
         if: always()
@@ -108,8 +111,14 @@ jobs:
       - name: Build
         run: dotnet build ${{ env.SOLUTION_FILE }} -c Release --no-restore -warnaserror /p:ContinuousIntegrationBuild=true /p:Version=${{ steps.version.outputs.value }}
 
-      - name: Pack ProText
-        run: dotnet pack ${{ env.PACKAGE_PROJECT }} -c Release --no-build -o ./artifacts/packages /p:ContinuousIntegrationBuild=true /p:Version=${{ steps.version.outputs.value }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+      - name: Pack ProText packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet pack src/ProText.Core/ProText.Core.csproj -c Release --no-restore -o ./artifacts/packages /p:ContinuousIntegrationBuild=true /p:Version=${{ steps.version.outputs.value }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+          dotnet pack src/ProText.Avalonia/ProText.Avalonia.csproj -c Release --no-restore -o ./artifacts/packages /p:ContinuousIntegrationBuild=true /p:Version=${{ steps.version.outputs.value }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+          dotnet pack src/ProText.Uno/ProText.Uno.csproj -c Release --no-restore -o ./artifacts/packages /p:ContinuousIntegrationBuild=true /p:Version=${{ steps.version.outputs.value }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
+          dotnet pack src/ProText.MAUI/ProText.MAUI.csproj -c Release --no-restore -o ./artifacts/packages /p:ContinuousIntegrationBuild=true /p:Version=${{ steps.version.outputs.value }} /p:IncludeSymbols=true /p:SymbolPackageFormat=snupkg
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
