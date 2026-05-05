@@ -356,6 +356,12 @@ The Uno sample demonstrates the same ProText scenarios through `ProText.Uno`:
 - dense scrolling text content with shared-cache diagnostics
 - Skia-backed target coverage appropriate for Uno desktop/headless automation
 
+Run it with:
+
+```bash
+dotnet run --project samples/ProText.Uno.Sample/ProText.Uno.Sample.csproj
+```
+
 The MAUI sample demonstrates the same ProText scenarios through `ProText.MAUI`:
 
 - MAUI `Label` beside MAUI `ProTextBlock`
@@ -364,13 +370,13 @@ The MAUI sample demonstrates the same ProText scenarios through `ProText.MAUI`:
 - MAUI `Editor` beside MAUI `ProTextBox`
 - dense scrolling text content with shared-cache diagnostics
 
-Build the MAUI sample on the default Android target with:
+Run it with:
 
 ```bash
-dotnet build samples/ProText.MAUI.Sample/ProText.MAUI.Sample.csproj
+dotnet run --project samples/ProText.MAUI.Sample/ProText.MAUI.Sample.csproj
 ```
 
-Run it on another available MAUI target by passing `ProTextMauiSampleTargetFrameworks`, for example `net10.0-maccatalyst`, when the local platform toolchain supports that target.
+On macOS the sample defaults to `net10.0-maccatalyst` for local desktop launch. On other hosts it defaults to `net10.0-android`; pass `-p:ProTextMauiSampleTargetFrameworks=net10.0-android` explicitly when running against an attached Android device or emulator.
 
 ## Performance Snapshot
 

@@ -225,5 +225,5 @@ Known v1 limitations:
 - `dotnet test tests/ProText.Uno.Tests/ProText.Uno.Tests.csproj`
 - `dotnet run --project samples/ProText.Uno.Sample/ProText.Uno.Sample.csproj`
 - `dotnet run -c Release --project benchmarks/ProText.Uno.Benchmarks/ProText.Uno.Benchmarks.csproj -- --list flat`
-- `dotnet build samples/ProText.MAUI.Sample/ProText.MAUI.Sample.csproj`
+- `dotnet run --project samples/ProText.MAUI.Sample/ProText.MAUI.Sample.csproj`
 - `dotnet run -c Release --project benchmarks/ProText.MAUI.Benchmarks/ProText.MAUI.Benchmarks.csproj -- --list flat`
