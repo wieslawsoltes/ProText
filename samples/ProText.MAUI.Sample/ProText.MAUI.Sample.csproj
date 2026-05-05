@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks Condition="'$(ProTextMauiSampleTargetFrameworks)' == ''">net10.0-android</TargetFrameworks>
+    <TargetFrameworks Condition="'$(ProTextMauiSampleTargetFrameworks)' == '' and $([MSBuild]::IsOSPlatform('osx'))">net10.0-maccatalyst</TargetFrameworks>
+    <TargetFrameworks Condition="'$(ProTextMauiSampleTargetFrameworks)' == '' and !$([MSBuild]::IsOSPlatform('osx'))">net10.0-android</TargetFrameworks>
     <TargetFrameworks Condition="'$(ProTextMauiSampleTargetFrameworks)' != ''">$(ProTextMauiSampleTargetFrameworks)</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <RootNamespace>ProText.MAUI.Sample</RootNamespace>
@@ -15,6 +16,9 @@
     <ApplicationVersion>1</ApplicationVersion>
     <WindowsPackageType>None</WindowsPackageType>
     <EnableProTextMauiReference Condition="'$(EnableProTextMauiReference)' == ''">true</EnableProTextMauiReference>
+    <ValidateXcodeVersion Condition="'$(ValidateXcodeVersion)' == '' and '$(Configuration)' == 'Debug' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">false</ValidateXcodeVersion>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Configuration)' == 'Debug' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst' and '$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">maccatalyst-arm64</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(Configuration)' == 'Debug' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">maccatalyst-x64</RuntimeIdentifier>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
