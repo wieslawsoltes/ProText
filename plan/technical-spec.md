@@ -8,6 +8,8 @@ ProText is a family of high-performance text controls powered by PretextSharp. T
 
 `ProText.Uno` is the Uno adapter. It adapts `ProText.Core` to WinUI/Uno controls, dependency properties, text elements, brushes, fonts, and Uno Skia rendering. It must not reference Avalonia and must not route text through Avalonia, WinUI, or Uno `TextBlock` fallbacks.
 
+`ProText.MAUI` is the .NET MAUI adapter. It adapts `ProText.Core` to MAUI controls, bindable properties, formatted text spans, brushes, fonts, and MAUI Skia rendering. It must not reference Avalonia or Uno and must not route text through MAUI `Label` or `Editor` fallbacks.
+
 ## Source Baseline
 
 The compatibility baseline is the local Avalonia checkout at `/Users/wieslawsoltes/GitHub/Avalonia`:
@@ -20,6 +22,8 @@ The compatibility baseline is the local Avalonia checkout at `/Users/wieslawsolt
 Avalonia's in-repo `TextBlock` has access to internal infrastructure such as `IInlineHost`, embedded-control run arrangement, automation peers, and text-line internals. An external package cannot reuse those internal members directly, and `TextBlock.Render` is sealed. To keep the Pretext render path hot and deterministic, `ProTextBlock` derives from `Control`, mirrors the public text-related `TextBlock` property surface, and does not own or delegate to an internal Avalonia `TextBlock` visual.
 
 The Uno adapter baseline is the current Uno/WinUI package baseline selected in repository package management. `ProText.Uno` uses public WinUI/Uno control and dependency-property patterns, keeps renderer-specific code isolated in the Uno adapter, and avoids copying or depending on internal framework text presenters.
+
+The MAUI adapter baseline is the current .NET MAUI package baseline selected in repository package management. `ProText.MAUI` uses public MAUI controls, bindable-property patterns, and handler-friendly renderer code, keeps renderer-specific code isolated in the MAUI adapter, and avoids copying or depending on internal framework label/editor presenters.
 
 ## Public API
 
@@ -80,6 +84,8 @@ Static cache API:
 
 `ProText.Uno` exposes equivalent public cache controls over `ProText.Core.ProTextCoreCache`, including bounded `MaxEntryCount`, `Clear()`, and `GetSnapshot()` diagnostics. The Uno facade does not create a separate cache universe from Avalonia; framework adapters share the same core cache process-wide.
 
+`ProText.MAUI` exposes equivalent public cache controls over `ProText.Core.ProTextCoreCache`, including bounded `MaxEntryCount`, `Clear()`, and `GetSnapshot()` diagnostics. The MAUI facade does not create a separate cache universe from Avalonia or Uno; framework adapters share the same core cache process-wide.
+
 ## Uno Public API
 
 The Uno package provides controls analogous to the Avalonia package while using WinUI/Uno types:
@@ -88,6 +94,15 @@ The Uno package provides controls analogous to the Avalonia package while using 
 - Uno `ProTextPresenter` exposes presenter-style `Text`, display inlines, preedit, caret, selection, password, hit-test, line bounds, and measurement APIs backed by `ProText.Core`.
 - Uno `ProTextBox` is a lightweight TextBox-like ProTextPresenter-derived host; it does not attempt to replace an internal framework text presenter in the built-in Uno `TextBox`.
 - Uno controls use normal WinUI/Uno dependency-property registration. Uno framework-internal generated dependency-property workflows are not required for this external package.
+
+## MAUI Public API
+
+The MAUI package provides controls analogous to the Avalonia and Uno packages while using MAUI types:
+
+- MAUI `ProTextBlock` uses bindable properties for `Text`, `FormattedText` or representable text spans, background, padding, text color/foreground, font family/size/attributes, alignment, line break mode, decorations, line height, letter spacing, max lines, and ProText-specific cache/rendering properties.
+- MAUI `ProTextPresenter` exposes presenter-style `Text`, formatted text, preedit, caret, selection, password, hit-test, line bounds, and measurement APIs backed by `ProText.Core`.
+- MAUI `ProTextBox` is a lightweight Editor-like ProTextPresenter-derived host; it does not attempt to replace an internal framework text presenter in the built-in MAUI `Editor`.
+- MAUI controls use normal MAUI bindable-property registration. Framework-internal handler or platform text-presenter workflows are not required for this external package.
 
 ## Rendering Strategy
 
@@ -104,11 +119,11 @@ The Pretext path is enabled when `UsePretextRendering == true` and the content c
 
 When enabled:
 
-1. Flatten plain text or inline content into styled `ProTextRichContent`. Avalonia inlines and brushes are converted by the Avalonia adapter; Uno text elements and brushes are converted by the Uno adapter. The rich content model itself is framework-neutral.
+1. Flatten plain text or inline content into styled `ProTextRichContent`. Avalonia inlines and brushes are converted by the Avalonia adapter; Uno text elements and brushes are converted by the Uno adapter; MAUI formatted text spans and brushes are converted by the MAUI adapter. The rich content model itself is framework-neutral.
 2. Convert font properties to an extended Pretext font string that includes ProText tracking, stretch, and feature markers.
 3. Retrieve or prepare `PreparedRichInline` instances through the bounded `ProText.Core` cache and `PretextLayout.PrepareRichInline`.
 4. Measure by walking `RichInlineLineRange` data and only materialize fragment strings for retained visible lines.
-5. Render with a thin framework draw operation when the active renderer is Skia. Avalonia uses `ICustomDrawOperation` and `ISkiaSharpApiLeaseFeature`; Uno uses its Skia-backed rendering surface.
+5. Render with a thin framework draw operation when the active renderer is Skia. Avalonia uses `ICustomDrawOperation` and `ISkiaSharpApiLeaseFeature`; Uno uses its Skia-backed rendering surface; MAUI uses a MAUI Skia-backed drawing surface.
 6. Delegate actual `SKCanvas` text drawing to the framework-neutral `ProTextSkiaRenderer`, including per-run fonts, Skia font fallback, brushes, letter spacing, and decorations.
 
 `ProTextPresenter` additionally uses text-index metadata on retained layout fragments for caret bounds, hit testing, and selection rectangles. These operations are implemented in `ProText.Core` geometry helpers over neutral point/rect types and do not call Avalonia `TextLayout` or `TextPresenter` internals.
@@ -119,10 +134,12 @@ No framework TextBlock fallback:
 
 - `ProTextBlock` never measures, arranges, or renders through an internal Avalonia `TextBlock`.
 - Uno `ProTextBlock` must never measure, arrange, or render through an internal WinUI/Uno `TextBlock`.
+- MAUI `ProTextBlock` must never measure, arrange, or render through an internal MAUI `Label` or `Editor`.
 - Embedded `InlineUIContainer` content is not rendered by the text control because it is not text content and no fallback visual is created.
 - Text containing scripts that require font fallback stays in the Pretext path and is measured/drawn with the ProText Skia font resolver.
 - If the Skia lease is unavailable inside the custom draw operation, the operation skips drawing; the fast path is intended for Avalonia's Skia renderer, which is the default desktop/headless renderer used by the sample, tests, and benchmarks.
 - If Uno's Skia draw surface is unavailable, the Uno operation may skip drawing rather than falling back to framework `TextBlock`.
+- If MAUI's Skia draw surface is unavailable, the MAUI operation may skip drawing rather than falling back to framework `Label` or `Editor`.
 
 ## Cache Strategy
 
@@ -140,7 +157,7 @@ Layout is width-dependent, so prepared text is cached globally while layout resu
 
 `ProTextSelectionGeometryCache` stores selection rectangles by layout snapshot, normalized selection range, bounds width, text alignment, and flow direction. `ProTextEditableText` centralizes presenter display-text composition for password masking, IME preedit insertion, and effective caret index calculation so non-Avalonia adapters can reuse the same editable text behavior.
 
-The public Avalonia `ProTextCache` type is a source-compatible facade over `ProText.Core.ProTextCoreCache`; it also ensures the Avalonia font resolver is installed before controls prepare or measure text. The Uno adapter exposes the same cache facade shape and installs the Uno/Skia font resolver before Uno controls prepare or measure text.
+The public Avalonia `ProTextCache` type is a source-compatible facade over `ProText.Core.ProTextCoreCache`; it also ensures the Avalonia font resolver is installed before controls prepare or measure text. The Uno adapter exposes the same cache facade shape and installs the Uno/Skia font resolver before Uno controls prepare or measure text. The MAUI adapter exposes the same cache facade shape and installs the MAUI/Skia font resolver before MAUI controls prepare or measure text.
 
 Default behavior:
 
@@ -174,14 +191,17 @@ Known v1 limitations:
 - `ProTextPresenter` exposes presenter-style movement, hit testing, caret bounds, line count, and selection APIs backed by retained ProText layout snapshots rather than Avalonia `TextLayout`
 - `ProTextBox` is a package-level custom control, not a mutation of Avalonia's built-in `TextBox`; future built-in TextBox feature gaps should be added deliberately as public API compatibility work on the ProText path
 - Uno starts with the same ProText-path limitations: no framework `TextBlock` fallback, no embedded visual-inline rendering, and TextBox-like features added deliberately through the Uno `ProTextBox` host rather than through built-in `TextBox` internals
+- MAUI starts with the same ProText-path limitations: no framework `Label` or `Editor` fallback, no embedded visual-content rendering, and Editor-like features added deliberately through the MAUI `ProTextBox` host rather than through built-in `Editor` internals
 
 ## Projects
 
 - `src/ProText.Core`: framework-neutral rich content, layout, cache, font fallback, selection geometry, and Skia rendering engine
 - `src/ProText.Avalonia`: Avalonia control library, theme resources, and Avalonia adapters over `ProText.Core`
 - `src/ProText.Uno`: Uno control library, WinUI/Uno dependency-property adapters, and Uno Skia adapters over `ProText.Core`
+- `src/ProText.MAUI`: MAUI control library, bindable-property adapters, formatted-text adapters, and MAUI Skia adapters over `ProText.Core`
 - `samples/ProText.Sample`: Avalonia desktop sample comparing `TextBlock`, `ProTextBlock`, inline content, and `ProTextPresenter`
 - `samples/ProText.Uno.Sample`: Uno sample comparing Uno `TextBlock`, Uno `ProTextBlock`, inline content, `ProTextPresenter`, and `ProTextBox`
+- `samples/ProText.MAUI.Sample`: MAUI sample comparing MAUI `Label`, MAUI `Editor`, MAUI `ProTextBlock`, formatted content, `ProTextPresenter`, and `ProTextBox`
 - `tests/ProText.Tests`: xUnit plus Avalonia headless render tests
 - `tests/ProText.Uno.Tests`: Uno adapter, API-surface, cache, and no-fallback boundary tests
 - `benchmarks/ProText.Benchmarks`: BenchmarkDotNet layout/render benchmarks
@@ -189,6 +209,7 @@ Known v1 limitations:
 - `benchmarks/ProText.PresenterBenchmarks`: BenchmarkDotNet presenter layout, caret, hit-test, selection, and render benchmarks
 - `benchmarks/ProText.TextBoxBenchmarks`: BenchmarkDotNet Avalonia `TextBox` versus `ProTextBox` measure and headless render benchmarks
 - `benchmarks/ProText.Uno.Benchmarks`: BenchmarkDotNet coverage for Uno `TextBlock`, Uno `TextBox`, Uno `ProTextBlock`, Uno `ProTextPresenter`, cache paths, and measurement APIs
+- `benchmarks/ProText.MAUI.Benchmarks`: BenchmarkDotNet coverage for MAUI `Label`, MAUI `Editor`, MAUI `ProTextBlock`, MAUI `ProTextPresenter`, cache paths, and measurement APIs
 
 ## Verification
 
@@ -204,3 +225,5 @@ Known v1 limitations:
 - `dotnet test tests/ProText.Uno.Tests/ProText.Uno.Tests.csproj`
 - `dotnet run --project samples/ProText.Uno.Sample/ProText.Uno.Sample.csproj`
 - `dotnet run -c Release --project benchmarks/ProText.Uno.Benchmarks/ProText.Uno.Benchmarks.csproj -- --list flat`
+- `dotnet build samples/ProText.MAUI.Sample/ProText.MAUI.Sample.csproj`
+- `dotnet run -c Release --project benchmarks/ProText.MAUI.Benchmarks/ProText.MAUI.Benchmarks.csproj -- --list flat`
