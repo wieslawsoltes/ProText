@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ProText.Uno.Sample (Desktop)": {
+      "commandName": "Project",
+      "compatibleTargetFramework": "desktop"
+    }
+  }
+}
