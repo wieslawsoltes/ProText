@@ -4,15 +4,19 @@
     <Project Path="benchmarks/ProText.InlineBenchmarks/ProText.InlineBenchmarks.csproj" />
     <Project Path="benchmarks/ProText.PresenterBenchmarks/ProText.PresenterBenchmarks.csproj" />
     <Project Path="benchmarks/ProText.TextBoxBenchmarks/ProText.TextBoxBenchmarks.csproj" />
+    <Project Path="benchmarks/ProText.Uno.Benchmarks/ProText.Uno.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/ProText.Sample/ProText.Sample.csproj" />
+    <Project Path="samples/ProText.Uno.Sample/ProText.Uno.Sample.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/ProText.Core/ProText.Core.csproj" />
     <Project Path="src/ProText.Avalonia/ProText.Avalonia.csproj" />
+    <Project Path="src/ProText.Uno/ProText.Uno.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ProText.Tests/ProText.Tests.csproj" />
+    <Project Path="tests/ProText.Uno.Tests/ProText.Uno.Tests.csproj" />
   </Folder>
 </Solution>

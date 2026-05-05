@@ -1,19 +1,22 @@
-# ProText.Avalonia
+# ProText
 
-High-performance Avalonia 12 text controls powered by PretextSharp.
+High-performance text controls for Avalonia and Uno powered by `ProText.Core` and PretextSharp.
 
-ProText.Avalonia is a focused text rendering toolkit for Avalonia applications that need fast measurement, predictable caching, rich inline display, editable text presentation, and TextBox-like input surfaces without routing text rendering through Avalonia `TextBlock` fallbacks.
+ProText is organized around a framework-neutral text engine plus thin UI-framework adapters. `ProText.Core` owns rich content preparation, layout snapshots, bounded shared caching, font fallback, selection geometry, and Skia rendering services. Framework packages adapt dependency properties, inlines, brushes, fonts, themes, and custom drawing surfaces without routing text through framework `TextBlock` fallbacks.
 
-The repository keeps the reusable preparation, layout, cache, font, and Skia rendering implementation in `ProText.Core`. The Avalonia controls package, assembly name, and CLR namespace are `ProText.Avalonia` so the same text engine can be adapted by other UI frameworks without referencing Avalonia.
+`ProText.Avalonia` is the Avalonia adapter. It provides `ProTextBlock`, `ProTextPresenter`, and `ProTextBox` for Avalonia applications that need fast measurement, predictable caching, rich inline display, editable text presentation, and TextBox-like input surfaces without routing text rendering through Avalonia `TextBlock` fallbacks.
 
-The controls are mapped into Avalonia's XML namespace through assembly-level `XmlnsDefinition` metadata, so they can be used directly in normal Avalonia XAML once the package or project reference is present.
+`ProText.Uno` is the Uno adapter. It uses `ProText.Core`, WinUI/Uno dependency-property patterns, Uno Skia rendering, and the same bounded shared cache model. It does not depend on Avalonia and does not fall back to Avalonia, WinUI, or Uno `TextBlock` rendering for multilingual, rich, unsupported, or compatibility-switch cases.
+
+Avalonia controls are mapped into Avalonia's XML namespace through assembly-level `XmlnsDefinition` metadata, so they can be used directly in normal Avalonia XAML once the package or project reference is present. Uno controls follow WinUI/Uno XAML namespace and dependency-property conventions.
 
 ## Packages
 
-| Package | Version | Downloads | Purpose |
-| --- | --- | --- | --- |
-| [ProText.Core](https://www.nuget.org/packages/ProText.Core/) | [![NuGet](https://img.shields.io/nuget/v/ProText.Core.svg)](https://www.nuget.org/packages/ProText.Core/) | [![Downloads](https://img.shields.io/nuget/dt/ProText.Core.svg)](https://www.nuget.org/packages/ProText.Core/) | Framework-neutral Pretext rich content, layout snapshots, cache, font fallback, selection geometry, and Skia rendering services. |
-| [ProText.Avalonia](https://www.nuget.org/packages/ProText.Avalonia/) | [![NuGet](https://img.shields.io/nuget/v/ProText.Avalonia.svg)](https://www.nuget.org/packages/ProText.Avalonia/) | [![Downloads](https://img.shields.io/nuget/dt/ProText.Avalonia.svg)](https://www.nuget.org/packages/ProText.Avalonia/) | ProText control library with `ProTextBlock`, `ProTextPresenter`, `ProTextBox`, Fluent theme resources, XML documentation, README metadata, and symbol packages. |
+| Package | Status | Purpose |
+| --- | --- | --- |
+| [ProText.Core](https://www.nuget.org/packages/ProText.Core/) | Package | Framework-neutral Pretext rich content, layout snapshots, bounded cache, font fallback, selection geometry, and Skia rendering services. |
+| [ProText.Avalonia](https://www.nuget.org/packages/ProText.Avalonia/) | Package | Avalonia control library with `ProTextBlock`, `ProTextPresenter`, `ProTextBox`, Fluent theme resources, XML documentation, README metadata, and symbol packages. |
+| `ProText.Uno` | Package | Uno control library using WinUI/Uno dependency properties, Uno Skia rendering, `ProText.Core`, XML documentation, README metadata, and symbol packages. |
 
 Install the Avalonia controls package with:
 
@@ -39,7 +42,15 @@ For local development inside this repository, reference the project directly:
 <ProjectReference Include="../../src/ProText.Avalonia/ProText.Avalonia.csproj" />
 ```
 
+For local Uno development:
+
+```xml
+<ProjectReference Include="../../src/ProText.Uno/ProText.Uno.csproj" />
+```
+
 `ProText.Avalonia` references `ProText.Core`; non-Avalonia hosts can reference [src/ProText.Core/ProText.Core.csproj](src/ProText.Core/ProText.Core.csproj) directly and provide their own font/style/content adapters.
+
+The Uno adapter references `ProText.Core` directly and keeps framework-specific code in the Uno adapter. It uses WinUI/Uno dependency properties for control APIs and Uno Skia surfaces for rendering.
 
 Avalonia package metadata:
 
@@ -51,6 +62,16 @@ Avalonia package metadata:
 - Dependencies: `ProText.Core`, Avalonia, Avalonia Skia rendering support, and Pretext
 - Artifacts: `.nupkg`, `.snupkg`, XML documentation, and the root [README.md](README.md)
 
+Uno package metadata:
+
+- Package id: `ProText.Uno`
+- Package title: `ProText.Uno`
+- Description: `High-performance Uno text controls powered by ProText.Core and PretextSharp.`
+- License: `MIT`
+- Repository: `https://github.com/wieslawsoltes/ProText`
+- Dependencies: `ProText.Core`, Uno/WinUI, Uno Skia rendering support, and Pretext
+- Artifacts: `.nupkg`, `.snupkg`, XML documentation, and the root [README.md](README.md)
+
 Core package metadata:
 
 - Package id: `ProText.Core`
@@ -59,9 +80,11 @@ Core package metadata:
 - Dependencies: Pretext, Pretext Skia rendering support, and SkiaSharp
 - Artifacts: `.nupkg`, `.snupkg`, XML documentation, and the root [README.md](README.md)
 
-[src/ProText.Core/ProText.Core.csproj](src/ProText.Core/ProText.Core.csproj) contains the reusable engine. [src/ProText.Avalonia/ProText.Avalonia.csproj](src/ProText.Avalonia/ProText.Avalonia.csproj) contains the Avalonia controls and theme resources. Samples, tests, and benchmark projects are explicitly marked as non-packable.
+[src/ProText.Core/ProText.Core.csproj](src/ProText.Core/ProText.Core.csproj) contains the reusable engine. [src/ProText.Avalonia/ProText.Avalonia.csproj](src/ProText.Avalonia/ProText.Avalonia.csproj) contains the Avalonia controls and theme resources. [src/ProText.Uno/ProText.Uno.csproj](src/ProText.Uno/ProText.Uno.csproj) contains the Uno controls and WinUI/Uno adapters. Samples, tests, and benchmark projects are explicitly marked as non-packable.
 
 ## Controls
+
+The Avalonia and Uno packages expose analogous controls backed by the same core engine and their native dependency-property systems.
 
 ### `ProTextBlock`
 
@@ -115,12 +138,22 @@ It provides a focused TextBox-style API:
 
 Avalonia's built-in `TextBox` expects Avalonia's own `TextPresenter` template part, so `ProTextPresenter` is not a drop-in replacement for the built-in `TextBox` template. `ProTextBox` exists as the ProText-backed editable host.
 
+### `ProText.Uno` Controls
+
+The Uno implementation mirrors the Avalonia control roles without sharing Avalonia types:
+
+- Uno `ProTextBlock` hosts an internal Uno Skia canvas element when the active target supports it, exposes WinUI/Uno dependency properties, and keeps plain, multilingual, and supported rich inline text on the `ProText.Core` path.
+- Uno `ProTextPresenter` exposes presenter-style caret, selection, preedit, password, hit-test, and measurement APIs backed by `ProText.Core` retained layout snapshots.
+- Uno `ProTextBox` is a lightweight TextBox-like host derived from the Uno `ProTextPresenter`, so visible text stays on the ProText path.
+- Unsupported non-text inline or embedded visual content may be skipped or reported as unsupported, but it must not create an Avalonia, WinUI, or Uno `TextBlock` fallback visual.
+
 ## Rendering Model
 
 ProText keeps text on the Pretext-powered path from preparation through rendering:
 
 - framework-neutral rich content, layout, cache, selection geometry, font fallback, and Skia drawing live in `ProText.Core`
 - Avalonia-specific code adapts `InlineCollection`, brushes, decorations, fonts, flow direction, and `ICustomDrawOperation` into the core value model
+- Uno-specific code adapts WinUI/Uno dependency properties, text elements, brushes, decorations, fonts, flow direction, and Uno Skia draw surfaces into the same core value model
 - plain text is prepared and segmented through PretextSharp
 - rich inline text is flattened into immutable ProText value data, then prepared through Pretext rich inline APIs
 - layout snapshots are local to each control and keyed by width
@@ -128,6 +161,7 @@ ProText keeps text on the Pretext-powered path from preparation through renderin
 - layout and render fingerprints are tracked separately; render-only style changes remap retained layout geometry without re-preparing text
 - render operations snapshot brushes, decorations, and selection styles into immutable value data
 - Skia drawing is performed through Avalonia custom draw operations using `ISkiaSharpApiLeaseFeature`
+- Uno drawing uses Uno's Skia-backed rendering surface and delegates actual text drawing to `ProTextSkiaRenderer`
 
 Supported inline text content includes `Run`, `Span`, `Bold`, `Italic`, `Underline`, and `LineBreak`. `InlineUIContainer` is skipped because it is visual content rather than text content; ProText does not create an internal Avalonia fallback visual for it.
 
@@ -144,6 +178,8 @@ Non-Avalonia hosts adapt their own text/style objects into `ProText.Core` value 
 - `ProTextEditableText` composes presenter display text for caret, password masking, and IME preedit text without depending on Avalonia.
 - `ProTextSkiaRenderer` draws layout snapshots to `SKCanvas` using immutable core render options.
 
+The Uno adapter is a normal non-Avalonia host of these APIs: no Avalonia references, no Avalonia `TextBlock` compatibility path, and no global cache keys that include viewport width.
+
 ## Cache And Diagnostics
 
 Global prepared-text caching is enabled by default and can be disabled per control with `UseGlobalCache="False"`.
@@ -156,7 +192,9 @@ Global prepared-text caching is enabled by default and can be disabled per contr
 
 ## Quick Start
 
-Reference the package or project, then use the controls from the standard Avalonia XAML namespace.
+Reference the package or project, then use the controls from the framework's XAML namespace.
+
+### Avalonia
 
 ```xml
 <Window xmlns="https://github.com/avaloniaui"
@@ -169,7 +207,7 @@ Reference the package or project, then use the controls from the standard Avalon
 </Window>
 ```
 
-### Display Text
+#### Display Text
 
 ```xml
 <ProTextBlock Text="High-volume text rendered through PretextSharp"
@@ -178,7 +216,7 @@ Reference the package or project, then use the controls from the standard Avalon
               UseGlobalCache="True" />
 ```
 
-### Rich Inline Text
+#### Rich Inline Text
 
 ```xml
 <ProTextBlock TextWrapping="Wrap"
@@ -192,7 +230,7 @@ Reference the package or project, then use the controls from the standard Avalon
 </ProTextBlock>
 ```
 
-### Presenter Surface
+#### Presenter Surface
 
 ```xml
 <ProTextPresenter Text="Selectable text presented through ProText"
@@ -204,7 +242,7 @@ Reference the package or project, then use the controls from the standard Avalon
                   SelectionForegroundBrush="#FFFFFF" />
 ```
 
-### Editable TextBox-Like Control
+#### Editable TextBox-Like Control
 
 ```xml
 <ProTextBox Text="Editable text presented through ProTextPresenter"
@@ -226,9 +264,26 @@ To use the Fluent `ProTextBox` theme, merge the ProText theme after Avalonia's F
 </Application.Resources>
 ```
 
+### Uno
+
+The Uno package is consumed like a normal Uno/WinUI control library and exposes WinUI/Uno dependency properties:
+
+```xml
+<Page
+    x:Class="MyApp.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:proText="using:ProText.Uno">
+    <proText:ProTextBlock Text="High-volume text rendered through ProText.Core"
+                          TextWrapping="Wrap"
+                          TextTrimming="CharacterEllipsis"
+                          UseGlobalCache="True" />
+</Page>
+```
+
 ## Sample App
 
-The sample project demonstrates the current control set and comparison scenarios:
+The Avalonia sample project demonstrates the current control set and comparison scenarios:
 
 - Avalonia `TextBlock` beside `ProTextBlock`
 - equivalent inline text rendered by Avalonia and ProText
@@ -242,6 +297,15 @@ Run it with:
 ```bash
 dotnet run --project samples/ProText.Sample/ProText.Sample.csproj
 ```
+
+The Uno sample demonstrates the same ProText scenarios through `ProText.Uno`:
+
+- Uno `TextBlock` beside Uno `ProTextBlock`
+- equivalent inline text rendered by Uno and ProText where the inline model is representable as text
+- Uno `ProTextPresenter` selection, caret, password, preedit, and rich-inline presentation
+- Uno `TextBox` beside Uno `ProTextBox`
+- dense scrolling text content with shared-cache diagnostics
+- Skia-backed target coverage appropriate for Uno desktop/headless automation
 
 ## Performance Snapshot
 
@@ -362,12 +426,16 @@ Frame benchmarks use one explicit headless render tick plus `GetLastRenderedFram
 
 - `src/ProText.Core` - framework-neutral rich content, layout, cache, font, selection geometry, and Skia renderer
 - `src/ProText.Avalonia` - Avalonia control library, themes, inline/style/font adapters, and custom draw operation host
+- `src/ProText.Uno` - Uno control library, WinUI/Uno property adapters, and Uno Skia rendering host
 - `samples/ProText.Sample` - desktop comparison and stress sample app
+- `samples/ProText.Uno.Sample` - Uno comparison and stress sample app
 - `tests/ProText.Tests` - unit tests and Avalonia headless rendering tests
+- `tests/ProText.Uno.Tests` - Uno adapter, API-surface, cache, and no-fallback boundary tests
 - `benchmarks/ProText.Benchmarks` - TextBlock, layout, cache, and render benchmarks
 - `benchmarks/ProText.InlineBenchmarks` - rich-inline layout benchmarks
 - `benchmarks/ProText.PresenterBenchmarks` - presenter measurement, hit-test, caret, selection, and render benchmarks
 - `benchmarks/ProText.TextBoxBenchmarks` - Avalonia TextBox versus ProTextBox benchmarks
+- `benchmarks/ProText.Uno.Benchmarks` - Uno TextBlock/TextBox comparison, ProTextBlock, presenter, cache, and measurement benchmarks
 - `plan` - technical specification and implementation plan
 
 ## Verification
@@ -379,6 +447,8 @@ dotnet run -c Release --project benchmarks/ProText.Benchmarks/ProText.Benchmarks
 dotnet run -c Release --project benchmarks/ProText.InlineBenchmarks/ProText.InlineBenchmarks.csproj -- --list flat
 dotnet run -c Release --project benchmarks/ProText.PresenterBenchmarks/ProText.PresenterBenchmarks.csproj -- --list flat
 dotnet run -c Release --project benchmarks/ProText.TextBoxBenchmarks/ProText.TextBoxBenchmarks.csproj -- --list flat
+dotnet test tests/ProText.Uno.Tests/ProText.Uno.Tests.csproj
+dotnet run -c Release --project benchmarks/ProText.Uno.Benchmarks/ProText.Uno.Benchmarks.csproj -- --list flat
 ```
 
 ## Design Principles
@@ -386,6 +456,6 @@ dotnet run -c Release --project benchmarks/ProText.TextBoxBenchmarks/ProText.Tex
 - Keep text measurement, layout, and rendering on the Pretext path.
 - Keep prepared-text caching global by default, bounded, and diagnosable.
 - Keep viewport-width-dependent layout snapshots local to each control.
-- Snapshot mutable Avalonia brushes and text decorations before rendering.
-- Share inline flattening, layout, selection, and render-style code between display and editable controls.
-- Avoid internal Avalonia `TextBlock` fallbacks inside ProText controls.
+- Snapshot mutable framework brushes and text decorations before rendering.
+- Share inline flattening, layout, selection, and render-style code between display and editable controls and across framework adapters through `ProText.Core`.
+- Avoid internal framework `TextBlock` fallbacks inside ProText controls.

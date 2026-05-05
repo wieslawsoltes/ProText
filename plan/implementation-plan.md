@@ -1,13 +1,15 @@
-# ProText.Avalonia Implementation Plan
+# ProText Implementation Plan
 
 ## 1. Repository Setup
 
 - Create a solution with library, sample, test, and benchmark projects.
 - Target `net10.0` for the library and developer tooling in this workspace.
-- Use central package management for Avalonia, PretextSharp, SkiaSharp, xUnit, Avalonia headless testing, and BenchmarkDotNet.
+- Use central package management for Avalonia, Uno/WinUI, PretextSharp, SkiaSharp, xUnit, Avalonia headless testing, Uno-supported UI testing, and BenchmarkDotNet.
 - Enable nullable reference types and implicit usings.
 - Maintain `src/ProText.Core` as the reusable Pretext/Skia text engine with no Avalonia dependency.
 - Maintain `src/ProText.Avalonia` as the Avalonia controls, inline/style/font adapter, theme, and custom draw operation host.
+- Add `src/ProText.Uno` as the Uno controls, WinUI/Uno dependency-property adapter, text-element/style/font adapter, theme, and Uno Skia draw operation host.
+- Keep framework adapters isolated from each other: `ProText.Uno` must not reference Avalonia, and `ProText.Avalonia` must not reference Uno.
 
 ## 2. Control Library
 
@@ -22,6 +24,17 @@
 - Add `ProTextCache` as the Avalonia facade over `ProText.Core` shared prepared text cache management and diagnostics.
 - Keep font descriptor building, layout snapshots, layout/prepared-content cache orchestration, editable text display composition, selection geometry, render font cache, and Skia drawing in `ProText.Core`.
 
+For `ProText.Uno`:
+
+- Add Uno `ProTextBlock`, derived from an appropriate WinUI/Uno control base, with WinUI/Uno dependency properties analogous to the Avalonia `ProTextBlock` API where practical.
+- Add Uno-specific properties for `UseGlobalCache`, `UsePretextRendering`, `PretextWhiteSpace`, `PretextWordBreak`, and `PretextLineHeightMultiplier`.
+- Implement measure, arrange, and drawing through `ProText.Core` layout snapshots and Uno Skia rendering surfaces.
+- Add Uno `ProTextPresenter` with presenter-style text, inline, selection, caret, preedit, password, hit-test, and measurement APIs backed by shared core code.
+- Add Uno `ProTextBox` as a lightweight TextBox-like ProTextPresenter-derived host.
+- Keep all Uno text rendering in the Pretext-powered path; do not add Avalonia, WinUI, or Uno `TextBlock` fallback visuals.
+- Add a Uno `ProTextCache` facade over `ProText.Core` shared prepared text cache management and diagnostics.
+- Keep Uno adapters limited to framework type conversion, dependency-property plumbing, resource/theme integration, and renderer bridge code.
+
 ## 3. Rendering
 
 - Use `PretextLayout.PrepareRichInline` for cacheable text preparation.
@@ -29,6 +42,8 @@
 - Materialize only visible rich inline fragments for render.
 - Draw through a thin Avalonia `ICustomDrawOperation` using `ISkiaSharpApiLeaseFeature`; delegate per-run `SKFont`, Skia shaders for gradients, manual letter spacing, and Skia decoration strokes to the core Skia renderer.
 - Use the direct Pretext draw operation for text content in Skia-backed render contexts, including multilingual text through Pretext measurement and Skia font fallback.
+- Draw Uno controls through a thin Uno Skia-backed operation; delegate per-run `SKFont`, Skia shaders for gradients, manual letter spacing, and Skia decoration strokes to the same core Skia renderer.
+- If a framework Skia surface is unavailable, skip drawing rather than falling back to framework `TextBlock`.
 
 ## 4. Sample App
 
@@ -36,6 +51,9 @@
 - Include long paragraphs, resize-sensitive wrapping, varied fonts, alignment, padding, rich inline text, `ProTextPresenter`, and a dense repeated-text grid.
 - Include controls for global cache, Pretext fast path, wrapping, max lines, font size, and text corpus.
 - Use restrained product-tool styling: compact controls, clear comparison surface, and no decorative dashboard-card clutter.
+- Add a Uno sample app with equivalent scenarios using Uno `TextBlock`, Uno `ProTextBlock`, Uno `ProTextPresenter`, Uno `TextBox`, and Uno `ProTextBox`.
+- Include dense scrolling/sample content and shared-cache diagnostics in the Uno sample.
+- Keep sample comparison content visually fair across framework baseline controls and ProText controls.
 
 ## 5. Tests
 
@@ -45,6 +63,9 @@
 - Add measurement tests for wrapping, no-wrap, max lines, and padding.
 - Add headless and layout tests for `ProTextPresenter` measure, caret bounds, caret movement, hit testing, selection rendering, password masking, preedit text, and inline rendering.
 - Add headless template and input tests for `ProTextBox` to ensure the copied Fluent theme creates `ProTextPresenter`, mouse/keyboard selection works, and TextBox-compatible API state/events remain synchronized.
+- Add Uno tests for dependency-property defaults, property invalidation, measure/arrange, rich rendering, cache reuse/bypass, multilingual Pretext-path behavior, and the no-framework-TextBlock-fallback invariant.
+- Add Uno presenter tests for measure, caret bounds, caret movement, hit testing, selection rendering, password masking, preedit text, and inline rendering using Uno-supported Skia/headless or runtime test lanes.
+- Add Uno API and editing-helper tests for `ProTextBox` to ensure editable text display remains on the ProText path.
 
 ## 6. Benchmarks
 
@@ -60,6 +81,7 @@
 - Add dedicated inline benchmark project for `TextBlock`, `ProTextBlock`, and `ProTextPresenter` inline measurement.
 - Add dedicated presenter benchmark project for presenter measurement, caret bounds, hit testing, selection, and render capture.
 - Add dedicated TextBox benchmark project for Avalonia `TextBox` versus `ProTextBox` measurement and headless render capture, including selected-text state.
+- Add a dedicated Uno benchmark project for Uno `TextBlock` versus Uno `ProTextBlock`, Uno `TextBox` versus Uno `ProTextBox`, global/local cache paths, inline measurement, presenter operations, and Uno Skia render capture.
 - Keep benchmark input corpora realistic: short label, paragraph, and large repeated body text.
 
 ## 7. Verification
@@ -71,3 +93,6 @@
 - Verify benchmark discovery for the base, inline, presenter, and TextBox benchmark projects sequentially or after a Release prebuild to avoid shared `obj/Release` file locks.
 - Run and compare the TextBox benchmark project when changing `ProTextBox` or its theme.
 - Start the sample app if the environment can launch an Avalonia desktop process; otherwise report the command.
+- Build and test the Uno package when `src/ProText.Uno` or shared core behavior changes.
+- Run the Uno sample app on an available Uno target head when the environment supports it; otherwise report the command.
+- Verify Uno benchmark discovery for the Uno benchmark project after a Release prebuild.
