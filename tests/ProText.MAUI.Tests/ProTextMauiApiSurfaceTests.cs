@@ -46,6 +46,7 @@ public class ProTextMauiApiSurfaceTests
 
         var properties = PublicProperties("ProText.MAUI.ProTextPresenter");
         Assert.Contains("CaretBlinkInterval", properties);
+        Assert.Contains("SelectionForegroundBrush", properties);
     }
 
     [Fact]

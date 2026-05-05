@@ -62,6 +62,12 @@ public class ProTextPresenter : ProTextBlock
         BindableProperty.Create(nameof(SelectionForeground), typeof(Brush), typeof(ProTextPresenter), null, propertyChanged: OnSelectionForegroundChanged);
 
     /// <summary>
+    /// Defines the <see cref="SelectionForegroundBrush"/> property.
+    /// </summary>
+    public static readonly BindableProperty SelectionForegroundBrushProperty =
+        BindableProperty.Create(nameof(SelectionForegroundBrush), typeof(Brush), typeof(ProTextPresenter), null, propertyChanged: OnSelectionForegroundChanged);
+
+    /// <summary>
     /// Defines the <see cref="CaretBrush"/> property.
     /// </summary>
     public static readonly BindableProperty CaretBrushProperty =
@@ -171,6 +177,15 @@ public class ProTextPresenter : ProTextBlock
     {
         get => (Brush?)GetValue(SelectionForegroundProperty);
         set => SetValue(SelectionForegroundProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the foreground brush used for selected text.
+    /// </summary>
+    public Brush? SelectionForegroundBrush
+    {
+        get => (Brush?)GetValue(SelectionForegroundBrushProperty);
+        set => SetValue(SelectionForegroundBrushProperty, value);
     }
 
     /// <summary>
@@ -533,7 +548,7 @@ public class ProTextPresenter : ProTextBlock
 
     private bool ShouldUseSelectionForeground()
     {
-        return ShowSelectionHighlight && SelectionStart != SelectionEnd && SelectionForeground is not null;
+        return ShowSelectionHighlight && SelectionStart != SelectionEnd && GetSelectionForegroundBrush() is not null;
     }
 
     private ProTextBrush? GetSelectionBrushSnapshot()
@@ -558,7 +573,7 @@ public class ProTextPresenter : ProTextBlock
 
     private ProTextBrush? GetSelectionForegroundSnapshot()
     {
-        var brush = SelectionForeground;
+        var brush = GetSelectionForegroundBrush();
 
         if (brush is null)
         {
@@ -574,6 +589,11 @@ public class ProTextPresenter : ProTextBlock
         }
 
         return _selectionForegroundSnapshot;
+    }
+
+    private Brush? GetSelectionForegroundBrush()
+    {
+        return SelectionForegroundBrush ?? SelectionForeground;
     }
 
     private ProTextSelectionRect[] GetSelectionRects(ProTextLayoutSnapshot snapshot, ProTextRect contentBounds)
