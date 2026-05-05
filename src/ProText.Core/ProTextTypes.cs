@@ -28,6 +28,8 @@ public enum ProTextTrimming
     None,
     CharacterEllipsis,
     WordEllipsis,
+    HeadCharacterEllipsis,
+    MiddleCharacterEllipsis,
 }
 
 /// <summary>

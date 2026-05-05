@@ -52,8 +52,8 @@ internal static class ProTextMauiAdapter
     {
         return lineBreakMode switch
         {
-            LineBreakMode.HeadTruncation => ProTextTrimming.CharacterEllipsis,
-            LineBreakMode.MiddleTruncation => ProTextTrimming.CharacterEllipsis,
+            LineBreakMode.HeadTruncation => ProTextTrimming.HeadCharacterEllipsis,
+            LineBreakMode.MiddleTruncation => ProTextTrimming.MiddleCharacterEllipsis,
             LineBreakMode.TailTruncation => ProTextTrimming.CharacterEllipsis,
             _ => ProTextTrimming.None,
         };
@@ -64,8 +64,8 @@ internal static class ProTextMauiAdapter
         return alignment switch
         {
             TextAlignment.Center => ProTextTextAlignment.Center,
-            TextAlignment.End => ProTextTextAlignment.Right,
-            _ => ProTextTextAlignment.Left,
+            TextAlignment.End => ProTextTextAlignment.End,
+            _ => ProTextTextAlignment.Start,
         };
     }
 

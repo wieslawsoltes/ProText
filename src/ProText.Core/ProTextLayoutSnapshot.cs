@@ -136,7 +136,9 @@ public sealed class ProTextLayoutSnapshot
     {
         var allLines = new List<ProTextLayoutLine>();
         var isConstrained = !double.IsPositiveInfinity(maxWidth);
-        var layoutWidth = isConstrained ? Math.Max(1, maxWidth) : double.PositiveInfinity;
+        var layoutWidth = isConstrained && (textWrapping != ProTextWrapping.NoWrap || textTrimming == ProTextTrimming.None)
+            ? Math.Max(1, maxWidth)
+            : double.PositiveInfinity;
 
         for (var paragraphIndex = 0; paragraphIndex < content.Paragraphs.Count; paragraphIndex++)
         {
@@ -253,18 +255,23 @@ public sealed class ProTextLayoutSnapshot
             return line;
         }
 
-        var source = line.Fragments.Select(static fragment => fragment with { }).ToList();
+        return textTrimming switch
+        {
+            ProTextTrimming.HeadCharacterEllipsis => TrimLineHead(line, targetWidth),
+            ProTextTrimming.MiddleCharacterEllipsis => TrimLineMiddle(line, targetWidth),
+            _ => TrimLineTail(line, targetWidth, textTrimming),
+        };
+    }
+
+    private static ProTextLayoutLine TrimLineTail(ProTextLayoutLine line, double targetWidth, ProTextTrimming textTrimming)
+    {
+        var source = CloneFragments(line.Fragments);
         var ellipsisStyle = source.Last(static fragment => fragment.Text.Length > 0).Style;
         var ellipsisWidth = MeasureText("…", ellipsisStyle);
 
         if (targetWidth <= ellipsisWidth)
         {
-            var sourceFragment = line.Fragments.Last(static fragment => fragment.Text.Length > 0);
-            return new ProTextLayoutLine(
-                [new ProTextLayoutFragment("…", ellipsisStyle, 0, ellipsisWidth, line.StartTextIndex, 0, sourceFragment.ParagraphIndex, sourceFragment.RunIndex)],
-                ellipsisWidth,
-                line.StartTextIndex,
-                line.StartTextIndex);
+            return CreateEllipsisOnlyLine(line, ellipsisStyle, ellipsisWidth);
         }
 
         while (source.Count > 0 && MeasureLineWidth(source) + ellipsisWidth > targetWidth)
@@ -290,18 +297,13 @@ public sealed class ProTextLayoutSnapshot
             }
             else
             {
-                source[^1] = last with { Text = trimmedText, Width = MeasureText(trimmedText, last.Style) };
+                source[^1] = last with { Text = trimmedText, TextLength = trimmedText.Length, Width = MeasureText(trimmedText, last.Style) };
             }
         }
 
         if (source.Count == 0)
         {
-            var sourceFragment = line.Fragments.Last(static fragment => fragment.Text.Length > 0);
-            return new ProTextLayoutLine(
-                [new ProTextLayoutFragment("…", ellipsisStyle, 0, ellipsisWidth, line.StartTextIndex, 0, sourceFragment.ParagraphIndex, sourceFragment.RunIndex)],
-                ellipsisWidth,
-                line.StartTextIndex,
-                line.StartTextIndex);
+            return CreateEllipsisOnlyLine(line, ellipsisStyle, ellipsisWidth);
         }
 
         var ellipsisSource = source[^1];
@@ -315,6 +317,225 @@ public sealed class ProTextLayoutSnapshot
             ellipsisSource.ParagraphIndex,
             ellipsisSource.RunIndex));
         return NormalizeFragmentPositions(source);
+    }
+
+    private static ProTextLayoutLine TrimLineHead(ProTextLayoutLine line, double targetWidth)
+    {
+        var source = CloneFragments(line.Fragments);
+        var ellipsisStyle = source.First(static fragment => fragment.Text.Length > 0).Style;
+        var ellipsisWidth = MeasureText("…", ellipsisStyle);
+
+        if (targetWidth <= ellipsisWidth)
+        {
+            return CreateEllipsisOnlyLine(line, ellipsisStyle, ellipsisWidth);
+        }
+
+        while (source.Count > 0 && MeasureLineWidth(source) + ellipsisWidth > targetWidth)
+        {
+            RemoveFirstVisibleGrapheme(source);
+        }
+
+        if (source.Count == 0)
+        {
+            return CreateEllipsisOnlyLine(line, ellipsisStyle, ellipsisWidth);
+        }
+
+        var ellipsisSource = line.Fragments.First(static fragment => fragment.Text.Length > 0);
+        source.Insert(0, new ProTextLayoutFragment(
+            "…",
+            ellipsisStyle,
+            0,
+            ellipsisWidth,
+            line.StartTextIndex,
+            0,
+            ellipsisSource.ParagraphIndex,
+            ellipsisSource.RunIndex));
+        return NormalizeFragmentPositions(source);
+    }
+
+    private static ProTextLayoutLine TrimLineMiddle(ProTextLayoutLine line, double targetWidth)
+    {
+        var source = CloneFragments(line.Fragments);
+        var ellipsisStyle = source[Math.Max(0, source.Count / 2)].Style;
+        var ellipsisWidth = MeasureText("…", ellipsisStyle);
+
+        if (targetWidth <= ellipsisWidth)
+        {
+            return CreateEllipsisOnlyLine(line, ellipsisStyle, ellipsisWidth);
+        }
+
+        SplitFragmentsForMiddleTrimming(source, out var left, out var right);
+
+        while (left.Count + right.Count > 0 && MeasureLineWidth(left) + ellipsisWidth + MeasureLineWidth(right) > targetWidth)
+        {
+            if (MeasureLineWidth(left) >= MeasureLineWidth(right) && left.Count > 0)
+            {
+                RemoveLastVisibleGrapheme(left);
+            }
+            else if (right.Count > 0)
+            {
+                RemoveFirstVisibleGrapheme(right);
+            }
+            else
+            {
+                RemoveLastVisibleGrapheme(left);
+            }
+        }
+
+        if (left.Count == 0 && right.Count == 0)
+        {
+            return CreateEllipsisOnlyLine(line, ellipsisStyle, ellipsisWidth);
+        }
+
+        var ellipsisSource = left.LastOrDefault(static fragment => fragment.Text.Length > 0)
+            ?? right.First(static fragment => fragment.Text.Length > 0);
+        var fragments = new List<ProTextLayoutFragment>(left.Count + 1 + right.Count);
+        fragments.AddRange(left);
+        fragments.Add(new ProTextLayoutFragment(
+            "…",
+            ellipsisStyle,
+            0,
+            ellipsisWidth,
+            ellipsisSource.TextEnd,
+            0,
+            ellipsisSource.ParagraphIndex,
+            ellipsisSource.RunIndex));
+        fragments.AddRange(right);
+        return NormalizeFragmentPositions(fragments);
+    }
+
+    private static List<ProTextLayoutFragment> CloneFragments(IReadOnlyList<ProTextLayoutFragment> fragments)
+    {
+        return fragments.Select(static fragment => fragment with { }).ToList();
+    }
+
+    private static ProTextLayoutLine CreateEllipsisOnlyLine(ProTextLayoutLine line, ProTextRichStyle ellipsisStyle, double ellipsisWidth)
+    {
+        var sourceFragment = line.Fragments.FirstOrDefault(static fragment => fragment.Text.Length > 0)
+            ?? line.Fragments[0];
+        return new ProTextLayoutLine(
+            [new ProTextLayoutFragment("…", ellipsisStyle, 0, ellipsisWidth, line.StartTextIndex, 0, sourceFragment.ParagraphIndex, sourceFragment.RunIndex)],
+            ellipsisWidth,
+            line.StartTextIndex,
+            line.StartTextIndex);
+    }
+
+    private static void RemoveFirstVisibleGrapheme(List<ProTextLayoutFragment> fragments)
+    {
+        while (fragments.Count > 0)
+        {
+            var first = fragments[0];
+
+            if (first.Text.Length == 0)
+            {
+                fragments.RemoveAt(0);
+                continue;
+            }
+
+            var trimmedText = ProTextGraphemeEnumerator.RemoveFirstGrapheme(first.Text);
+
+            if (trimmedText.Length == 0)
+            {
+                fragments.RemoveAt(0);
+            }
+            else
+            {
+                var removedLength = first.Text.Length - trimmedText.Length;
+                fragments[0] = first with
+                {
+                    Text = trimmedText,
+                    Width = MeasureText(trimmedText, first.Style),
+                    TextStart = first.TextStart + removedLength,
+                    TextLength = trimmedText.Length,
+                };
+            }
+
+            return;
+        }
+    }
+
+    private static void RemoveLastVisibleGrapheme(List<ProTextLayoutFragment> fragments)
+    {
+        while (fragments.Count > 0)
+        {
+            var lastIndex = fragments.Count - 1;
+            var last = fragments[lastIndex];
+
+            if (last.Text.Length == 0)
+            {
+                fragments.RemoveAt(lastIndex);
+                continue;
+            }
+
+            var trimmedText = ProTextGraphemeEnumerator.RemoveLastGrapheme(last.Text);
+
+            if (trimmedText.Length == 0)
+            {
+                fragments.RemoveAt(lastIndex);
+            }
+            else
+            {
+                fragments[lastIndex] = last with
+                {
+                    Text = trimmedText,
+                    Width = MeasureText(trimmedText, last.Style),
+                    TextLength = trimmedText.Length,
+                };
+            }
+
+            return;
+        }
+    }
+
+    private static void SplitFragmentsForMiddleTrimming(
+        IReadOnlyList<ProTextLayoutFragment> source,
+        out List<ProTextLayoutFragment> left,
+        out List<ProTextLayoutFragment> right)
+    {
+        left = [];
+        right = [];
+
+        var totalGraphemes = source.Sum(static fragment => ProTextGraphemeEnumerator.Count(fragment.Text));
+        var remainingLeftGraphemes = Math.Max(1, totalGraphemes / 2);
+
+        foreach (var fragment in source)
+        {
+            var fragmentGraphemes = ProTextGraphemeEnumerator.Count(fragment.Text);
+
+            if (fragmentGraphemes == 0)
+            {
+                continue;
+            }
+
+            if (remainingLeftGraphemes >= fragmentGraphemes)
+            {
+                left.Add(fragment);
+                remainingLeftGraphemes -= fragmentGraphemes;
+                continue;
+            }
+
+            if (remainingLeftGraphemes <= 0)
+            {
+                right.Add(fragment);
+                continue;
+            }
+
+            var split = ProTextGraphemeEnumerator.SplitAtGraphemeCount(fragment.Text, remainingLeftGraphemes);
+            left.Add(fragment with
+            {
+                Text = split.Left,
+                Width = MeasureText(split.Left, fragment.Style),
+                TextLength = split.Left.Length,
+            });
+            right.Add(fragment with
+            {
+                Text = split.Right,
+                Width = MeasureText(split.Right, fragment.Style),
+                TextStart = fragment.TextStart + split.Left.Length,
+                TextLength = split.Right.Length,
+            });
+            remainingLeftGraphemes = 0;
+        }
     }
 
     private static string TrimToLastWordBoundary(string text)

@@ -1,4 +1,6 @@
 using System.Reflection;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui.Graphics;
 using ProText.Core;
 
 namespace ProText.MAUI.Tests;
@@ -26,9 +28,9 @@ public class ProTextMauiAdapterTests
         Assert.Equal(ProTextTrimming.None, InvokeEnum<ProTextTrimming>(method, "NoWrap"));
         Assert.Equal(ProTextTrimming.None, InvokeEnum<ProTextTrimming>(method, "WordWrap"));
         Assert.Equal(ProTextTrimming.None, InvokeEnum<ProTextTrimming>(method, "CharacterWrap"));
-        Assert.Equal(ProTextTrimming.CharacterEllipsis, InvokeEnum<ProTextTrimming>(method, "HeadTruncation"));
+        Assert.Equal(ProTextTrimming.HeadCharacterEllipsis, InvokeEnum<ProTextTrimming>(method, "HeadTruncation"));
         Assert.Equal(ProTextTrimming.CharacterEllipsis, InvokeEnum<ProTextTrimming>(method, "TailTruncation"));
-        Assert.Equal(ProTextTrimming.CharacterEllipsis, InvokeEnum<ProTextTrimming>(method, "MiddleTruncation"));
+        Assert.Equal(ProTextTrimming.MiddleCharacterEllipsis, InvokeEnum<ProTextTrimming>(method, "MiddleTruncation"));
     }
 
     [Fact]
@@ -37,9 +39,9 @@ public class ProTextMauiAdapterTests
         var method = RequiredMethod(typeof(ProTextTextAlignment), "Microsoft.Maui.TextAlignment",
             "ToCore", "ToCoreTextAlignment", "ToTextAlignment");
 
-        Assert.Equal(ProTextTextAlignment.Left, InvokeEnum<ProTextTextAlignment>(method, "Start"));
+        Assert.Equal(ProTextTextAlignment.Start, InvokeEnum<ProTextTextAlignment>(method, "Start"));
         Assert.Equal(ProTextTextAlignment.Center, InvokeEnum<ProTextTextAlignment>(method, "Center"));
-        Assert.Equal(ProTextTextAlignment.Right, InvokeEnum<ProTextTextAlignment>(method, "End"));
+        Assert.Equal(ProTextTextAlignment.End, InvokeEnum<ProTextTextAlignment>(method, "End"));
     }
 
     [Fact]
@@ -64,6 +66,23 @@ public class ProTextMauiAdapterTests
         Assert.Equal(2, snapshot.Count);
         Assert.Contains(snapshot, decoration => decoration.Location == ProTextDecorationLocation.Underline);
         Assert.Contains(snapshot, decoration => decoration.Location == ProTextDecorationLocation.Strikethrough);
+    }
+
+    [Fact]
+    public void SnapshotsMauiBrushColorAlpha()
+    {
+        var method = RequiredMethod(typeof(ProTextBrush), typeof(Brush), "SnapshotBrush");
+        var brush = new SolidColorBrush(Color.FromRgba(255, 0, 0, 0.42));
+        var snapshot = Assert.IsType<ProTextSolidBrush>(method.Invoke(null, [brush]));
+
+        Assert.Equal(107, snapshot.Color.A);
+        Assert.Equal(1, snapshot.Opacity);
+    }
+
+    [Fact]
+    public void CurrentMauiBrushApiHasNoBrushOpacityProperty()
+    {
+        Assert.Null(typeof(Brush).GetProperty("Opacity"));
     }
 
     [Fact]

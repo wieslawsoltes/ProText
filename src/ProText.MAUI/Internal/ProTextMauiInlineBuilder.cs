@@ -64,7 +64,7 @@ internal static class ProTextMauiInlineBuilder
         var fontSize = span.IsSet(Span.FontSizeProperty) && span.FontSize > 0 ? span.FontSize : parent.FontSize;
         var fontAttributes = span.IsSet(Span.FontAttributesProperty) ? span.FontAttributes : FontAttributes.None;
         var fontStyle = span.IsSet(Span.FontAttributesProperty) ? ProTextMauiAdapter.ToCore(fontAttributes) : parent.FontStyle;
-        var fontWeight = span.IsSet(Span.FontAttributesProperty) ? ProTextMauiAdapter.GetFontWeight(parent.FontWeight, fontAttributes) : parent.FontWeight;
+        var fontWeight = span.IsSet(Span.FontAttributesProperty) ? ProTextMauiAdapter.GetFontWeight(400, fontAttributes) : parent.FontWeight;
         var foreground = span.IsSet(Span.TextColorProperty)
             ? new ProTextSolidBrush(ProTextMauiAdapter.ToCore(span.TextColor), 1)
             : parent.Foreground;

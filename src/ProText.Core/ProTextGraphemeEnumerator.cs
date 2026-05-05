@@ -41,4 +41,38 @@ public static class ProTextGraphemeEnumerator
         var indexes = StringInfo.ParseCombiningCharacters(text);
         return indexes.Length <= 1 ? string.Empty : text[..indexes[^1]];
     }
+
+    public static string RemoveFirstGrapheme(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return string.Empty;
+        }
+
+        var indexes = StringInfo.ParseCombiningCharacters(text);
+        return indexes.Length <= 1 ? string.Empty : text[indexes[1]..];
+    }
+
+    public static (string Left, string Right) SplitAtGraphemeCount(string text, int leftGraphemeCount)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return (string.Empty, string.Empty);
+        }
+
+        var indexes = StringInfo.ParseCombiningCharacters(text);
+
+        if (leftGraphemeCount <= 0)
+        {
+            return (string.Empty, text);
+        }
+
+        if (leftGraphemeCount >= indexes.Length)
+        {
+            return (text, string.Empty);
+        }
+
+        var splitIndex = indexes[leftGraphemeCount];
+        return (text[..splitIndex], text[splitIndex..]);
+    }
 }

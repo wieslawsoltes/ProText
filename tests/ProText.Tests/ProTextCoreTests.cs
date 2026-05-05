@@ -282,6 +282,39 @@ public sealed class ProTextCoreTests
     }
 
     [Fact]
+    public void Layout_snapshot_head_trimming_keeps_logical_suffix()
+    {
+        ProTextCoreCache.Clear();
+        const string text = "abcdefghijklmnopqrstuvwxyz";
+        var full = CreateNoWrapSnapshot(text, double.PositiveInfinity, ProTextTrimming.None);
+        var snapshot = CreateNoWrapSnapshot(text, full.Width * 0.45, ProTextTrimming.HeadCharacterEllipsis);
+        var trimmed = FlattenLineText(snapshot);
+
+        Assert.StartsWith("…", trimmed);
+        Assert.EndsWith("z", trimmed);
+        Assert.NotEqual(text, trimmed);
+        Assert.True(snapshot.Width <= full.Width * 0.45 || Math.Abs(snapshot.Width - full.Width * 0.45) < 0.01);
+    }
+
+    [Fact]
+    public void Layout_snapshot_middle_trimming_keeps_logical_prefix_and_suffix()
+    {
+        ProTextCoreCache.Clear();
+        const string text = "abcdefghijklmnopqrstuvwxyz";
+        var full = CreateNoWrapSnapshot(text, double.PositiveInfinity, ProTextTrimming.None);
+        var snapshot = CreateNoWrapSnapshot(text, full.Width * 0.45, ProTextTrimming.MiddleCharacterEllipsis);
+        var trimmed = FlattenLineText(snapshot);
+
+        Assert.StartsWith("a", trimmed);
+        Assert.Contains("…", trimmed, StringComparison.Ordinal);
+        Assert.EndsWith("z", trimmed);
+        Assert.NotEqual(text, trimmed);
+        Assert.False(trimmed.StartsWith("…", StringComparison.Ordinal));
+        Assert.False(trimmed.EndsWith("…", StringComparison.Ordinal));
+        Assert.True(snapshot.Width <= full.Width * 0.45 || Math.Abs(snapshot.Width - full.Width * 0.45) < 0.01);
+    }
+
+    [Fact]
     public void Selection_geometry_cache_reuses_reversed_selection()
     {
         var snapshot = CreateSnapshot("selection geometry", maxWidth: 200);
@@ -434,6 +467,23 @@ public sealed class ProTextCoreTests
     {
         var content = CreateContent(text, CreateStyle(fontSize: 12, letterSpacing: 0));
         return new ProTextLayoutCache().GetSnapshot(content, CreateLayoutRequest(maxWidth));
+    }
+
+    private static ProTextLayoutSnapshot CreateNoWrapSnapshot(string text, double maxWidth, ProTextTrimming trimming)
+    {
+        var content = CreateContent(text, CreateStyle(fontSize: 12, letterSpacing: 0));
+        return new ProTextLayoutCache().GetSnapshot(content, new ProTextLayoutRequest(
+            maxWidth,
+            LineHeight: 16,
+            MaxLines: 0,
+            ProTextWrapping.NoWrap,
+            trimming,
+            UseGlobalCache: true));
+    }
+
+    private static string FlattenLineText(ProTextLayoutSnapshot snapshot)
+    {
+        return string.Concat(snapshot.Lines.Single().Fragments.Select(static fragment => fragment.Text));
     }
 
     private static ProTextLayoutRequest CreateLayoutRequest(double maxWidth, bool useGlobalCache = true)
