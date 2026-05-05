@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AssemblyName>ProText.MAUI</AssemblyName>
+    <RootNamespace>ProText.MAUI</RootNamespace>
+    <PackageId>ProText.MAUI</PackageId>
+    <Title>ProText.MAUI</Title>
+    <Description>High-performance .NET MAUI text controls powered by ProText.Core and PretextSharp.</Description>
+    <PackageTags>MAUI;Text;Label;TextBox;PretextSharp;SkiaSharp</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" />
+    <PackageReference Include="Pretext" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.Views.Maui.Controls" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../ProText.Core/ProText.Core.csproj" />
+  </ItemGroup>
+
+</Project>

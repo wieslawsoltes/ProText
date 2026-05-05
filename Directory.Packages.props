@@ -14,10 +14,12 @@
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="Microsoft.Maui.Controls" Version="10.0.0" />
     <PackageVersion Include="Pretext" Version="0.1.0" />
     <PackageVersion Include="Pretext.Layout" Version="0.1.0" />
     <PackageVersion Include="Pretext.SkiaSharp" Version="0.1.0" />
     <PackageVersion Include="SkiaSharp" Version="3.119.1" />
+    <PackageVersion Include="SkiaSharp.Views.Maui.Controls" Version="3.119.1" />
     <PackageVersion Include="Uno.WinUI" Version="6.5.153" />
     <PackageVersion Include="Uno.WinUI.Graphics2DSK" Version="6.5.153" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
